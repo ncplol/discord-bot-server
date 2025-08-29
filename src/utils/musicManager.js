@@ -126,6 +126,13 @@ class MusicManager {
       throw new Error('Not connected to a voice channel!');
     }
     
+    // Check if we're already playing this exact track
+    const currentTrack = this.nowPlaying.get(guildId);
+    if (currentTrack && currentTrack.url === track.url) {
+      console.log('⚠️ Already playing this track, skipping duplicate play');
+      return;
+    }
+    
     // Clear current queue and add this track
     // this.queues.set(guildId, []);
     this.nowPlaying.set(guildId, track);
@@ -153,6 +160,15 @@ class MusicManager {
         hasVolume: !!resource.volume
       });
       
+      // Add error handling for the resource
+      resource.on('error', (error) => {
+        console.error('❌ Audio resource error:', error);
+      });
+      
+      resource.on('end', () => {
+        console.log('📡 Audio resource ended naturally');
+      });
+      
       // Set up event handlers only once per player
       if (!this.players.has(guildId + '_handlers')) {
         player.on(AudioPlayerStatus.Playing, () => {
@@ -167,12 +183,25 @@ class MusicManager {
           if (currentTrack) {
             console.log(`⏹️ Finished playing: ${currentTrack.title}`);
           }
-          this.playNext(guildId);
+          // Only call playNext if there are tracks in the queue
+          const queue = this.queues.get(guildId);
+          if (queue && queue.length > 0) {
+            this.playNext(guildId);
+          } else {
+            // No more tracks, clear now playing and auto-disconnect
+            this.nowPlaying.delete(guildId);
+            setTimeout(() => {
+              if (this.queues.get(guildId)?.length === 0 && !this.nowPlaying.get(guildId)) {
+                console.log(`🔄 Auto-disconnecting from guild ${guildId} - queue empty`);
+                this.leaveVoiceChannel(guildId);
+              }
+            }, 30000);
+          }
         });
         
         player.on('error', error => {
           console.error('Audio player error:', error);
-          this.playNext(guildId);
+          // Don't auto-call playNext on error, let user handle it
         });
         
         this.players.set(guildId + '_handlers', true);
@@ -276,7 +305,8 @@ class MusicManager {
       await this.playTrack(guildId, nextTrack);
     } catch (error) {
       console.error('Error playing next track:', error);
-      this.playNext(guildId); // Try next track
+      // Don't recursively call playNext to prevent infinite loops
+      // Just log the error and let the user handle it
     }
   }
 
