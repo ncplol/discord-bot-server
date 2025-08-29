@@ -160,15 +160,6 @@ class MusicManager {
         hasVolume: !!resource.volume
       });
       
-      // Add error handling for the resource
-      resource.on('error', (error) => {
-        console.error('❌ Audio resource error:', error);
-      });
-      
-      resource.on('end', () => {
-        console.log('📡 Audio resource ended naturally');
-      });
-      
       // Set up event handlers only once per player
       if (!this.players.has(guildId + '_handlers')) {
         player.on(AudioPlayerStatus.Playing, () => {
