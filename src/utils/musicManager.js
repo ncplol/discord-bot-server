@@ -137,32 +137,49 @@ class MusicManager {
       
       console.log('🔗 Attempting to stream URL:', track.url);
       
-      // Use yt-dlp to get stream URL
+      // Use yt-dlp to get stream URL with better format detection
       const streamUrl = await this.getStreamUrl(track.url);
       console.log('🎯 Stream URL obtained:', streamUrl);
       
-      // Create audio resource from the stream URL
+      // Create audio resource from the stream URL with proper input type
       const resource = createAudioResource(streamUrl, {
         inlineVolume: true,
+        inputType: 'arbitrary', // Use arbitrary for better compatibility
       });
+      
+      console.log('🔧 Audio resource created:', {
+        url: streamUrl.substring(0, 100) + '...',
+        inputType: resource.inputType,
+        hasVolume: !!resource.volume
+      });
+      
+      // Set up event handlers only once per player
+      if (!this.players.has(guildId + '_handlers')) {
+        player.on(AudioPlayerStatus.Playing, () => {
+          const currentTrack = this.nowPlaying.get(guildId);
+          if (currentTrack) {
+            console.log(`▶️ Started playing: ${currentTrack.title}`);
+          }
+        });
+        
+        player.on(AudioPlayerStatus.Idle, () => {
+          const currentTrack = this.nowPlaying.get(guildId);
+          if (currentTrack) {
+            console.log(`⏹️ Finished playing: ${currentTrack.title}`);
+          }
+          this.playNext(guildId);
+        });
+        
+        player.on('error', error => {
+          console.error('Audio player error:', error);
+          this.playNext(guildId);
+        });
+        
+        this.players.set(guildId + '_handlers', true);
+      }
       
       player.play(resource);
       console.log(`🎵 Playing: ${track.title}`);
-      
-      // Set up event handlers
-      player.on(AudioPlayerStatus.Playing, () => {
-        console.log(`▶️ Started playing: ${track.title}`);
-      });
-      
-      player.on(AudioPlayerStatus.Idle, () => {
-        console.log(`⏹️ Finished playing: ${track.title}`);
-        this.playNext(guildId);
-      });
-      
-      player.on('error', error => {
-        console.error('Audio player error:', error);
-        this.playNext(guildId);
-      });
       
     } catch (error) {
       console.error('Error playing track:', error);
@@ -174,7 +191,7 @@ class MusicManager {
   async getStreamUrl(url) {
     return new Promise((resolve, reject) => {
       const ytdlp = spawn('yt-dlp', [
-        '--format', 'bestaudio',
+        '--format', 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio',
         '--dump-json',
         '--no-playlist',
         url
@@ -195,11 +212,29 @@ class MusicManager {
         if (code === 0) {
           try {
             const videoInfo = JSON.parse(stdout);
-            // Extract the best audio URL
-            const audioFormats = videoInfo.formats?.filter(f => f.acodec !== 'none' && f.vcodec === 'none') || [];
-            const bestAudio = audioFormats.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+            console.log('📋 Video info received, formats available:', videoInfo.formats?.length || 0);
+            
+            // Extract the best audio URL with better format selection
+            const audioFormats = videoInfo.formats?.filter(f => 
+              f.acodec !== 'none' && 
+              f.vcodec === 'none' && 
+              (f.ext === 'm4a' || f.ext === 'webm' || f.ext === 'mp3')
+            ) || [];
+            
+            console.log('🎵 Audio formats found:', audioFormats.length);
+            
+            // Prioritize m4a, then webm, then others
+            const bestAudio = audioFormats.sort((a, b) => {
+              // Prefer m4a format
+              if (a.ext === 'm4a' && b.ext !== 'm4a') return -1;
+              if (b.ext === 'm4a' && a.ext !== 'm4a') return 1;
+              
+              // Then sort by bitrate
+              return (b.abr || 0) - (a.abr || 0);
+            })[0];
             
             if (bestAudio && bestAudio.url) {
+              console.log('🎯 Selected format:', bestAudio.ext, 'bitrate:', bestAudio.abr);
               resolve(bestAudio.url);
             } else {
               reject(new Error('No audio stream found'));
