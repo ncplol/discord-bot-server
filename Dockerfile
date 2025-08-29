@@ -2,12 +2,10 @@
 FROM node:20-alpine
 
 # Install essential system dependencies using the package manager
-# This includes ffmpeg for audio processing and python/pip for yt-dlp
+# This includes ffmpeg for audio processing and yt-dlp
 RUN apk add --no-cache \
     ffmpeg \
-    python3 \
-    py3-pip \ 
-    py3-yt-dlp
+    yt-dlp
 
 # Set working directory
 WORKDIR /app
