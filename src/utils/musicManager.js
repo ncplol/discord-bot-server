@@ -262,7 +262,7 @@ class MusicManager {
         return 'resumed';
       }
     }
-    return false;
+    return 'idle'; // Return 'idle' if not playing or paused
   }
 
   // Search for tracks

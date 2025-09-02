@@ -35,8 +35,14 @@ module.exports = {
         track = results[0];
       }
       
-      // Add to queue and play
+      // Get state BEFORE adding to queue to determine the correct position message
+      const nowPlaying = musicManager.getNowPlaying(interaction.guildId);
+
+      // Add to queue
       const queuePosition = musicManager.addToQueue(interaction.guildId, track);
+
+      // Determine the position text based on whether a track was already playing
+      const positionText = nowPlaying ? `#${queuePosition} in queue` : 'Now Playing';
       
       const embed = new EmbedBuilder()
         .setColor(0x00ff00)
@@ -45,14 +51,13 @@ module.exports = {
         .addFields(
           { name: 'Duration', value: formatDuration(track.duration), inline: true },
           { name: 'Author', value: track.author || 'Unknown', inline: true },
-          { name: 'Position', value: queuePosition === 1 ? 'Now Playing' : `#${queuePosition} in queue`, inline: true }
+          { name: 'Position', value: positionText, inline: true }
         )
         .setThumbnail(track.thumbnail || null)
         .setTimestamp();
       
-      // If nothing is currently playing, start the playback loop.
-      // playNext() will handle pulling the track from the queue.
-      if (!musicManager.getNowPlaying(interaction.guildId)) {
+      // If nothing was playing before we added this track, start the playback.
+      if (!nowPlaying) {
         await musicManager.playNext(interaction.guildId);
         embed.setTitle('🎵 Now Playing');
       }
