@@ -1,39 +1,36 @@
-# Use Node.js 20 Alpine for better performance and latest features
-FROM node:20-alpine
+FROM node:20
 
-# Install essential system dependencies using the package manager
-# This includes ffmpeg for audio processing and yt-dlp
-RUN apk add --no-cache \
-    ffmpeg \
-    yt-dlp
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies and build tools, then clean up
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    python3 \
+    curl \
+    build-essential \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
+    && npm ci --only=production \
+    && npm cache clean --force \
+    && apt-get purge -y --auto-remove build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy source code
 COPY . .
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S discordbot -u 1001
+# Use the built-in node user for security
+RUN chown -R node:node /app
+USER node
 
-# Change ownership of the app directory
-RUN chown -R discordbot:nodejs /app
-USER discordbot
-
-# Expose port (if needed for health checks)
 EXPOSE 3000
 EXPOSE 3001
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "console.log('Health check passed')" || exit 1
 
-# Start the bot
 CMD ["npm", "start"]

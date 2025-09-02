@@ -125,152 +125,81 @@ class MusicManager {
     if (!player) {
       throw new Error('Not connected to a voice channel!');
     }
-    
-    // Check if we're already playing this exact track
-    const currentTrack = this.nowPlaying.get(guildId);
-    if (currentTrack && currentTrack.url === track.url) {
-      console.log('⚠️ Already playing this track, skipping duplicate play');
-      return;
-    }
-    
-    // Clear current queue and add this track
-    // this.queues.set(guildId, []);
-    this.nowPlaying.set(guildId, track);
-    
+
     try {
       if (!track.url) {
         throw new Error('Track URL is undefined or null');
       }
-      
-      console.log('🔗 Attempting to stream URL:', track.url);
-      
-      // Use yt-dlp to get stream URL with better format detection
-      const streamUrl = await this.getStreamUrl(track.url);
-      console.log('🎯 Stream URL obtained:', streamUrl);
-      
-      // Create audio resource from the stream URL with proper input type
-      const resource = createAudioResource(streamUrl, {
+
+      console.log('🔗 Attempting to stream directly from URL:', track.url);
+
+      // Spawn yt-dlp to get a raw audio stream, piping stdout
+      const ytdlp = spawn('yt-dlp', [
+        track.url,
+        '--format', 'bestaudio/best',
+        '-o', '-', // Pipe output to stdout
+        '--no-playlist',
+        '--quiet', // Suppress verbose logs
+      ]);
+
+      // Create audio resource from the ytdlp stdout stream
+      const resource = createAudioResource(ytdlp.stdout, {
         inlineVolume: true,
-        inputType: 'arbitrary', // Use arbitrary for better compatibility
       });
       
-      console.log('🔧 Audio resource created:', {
-        url: streamUrl.substring(0, 100) + '...',
-        inputType: resource.inputType,
-        hasVolume: !!resource.volume
+      console.log('🔧 Audio resource created from direct stream.');
+
+      // Attach event listeners directly to the resource for this specific track
+      resource.playStream.on('start', () => {
+        const currentTrack = this.nowPlaying.get(guildId);
+        if (currentTrack) {
+          console.log(`▶️ Started playing: ${currentTrack.title}`);
+        }
+      });
+
+      resource.playStream.on('finish', () => {
+        const currentTrack = this.nowPlaying.get(guildId);
+        if (currentTrack) {
+          console.log(`⏹️ Finished playing: ${currentTrack.title}`);
+        }
+        const queue = this.queues.get(guildId);
+        if (queue && queue.length > 0) {
+          this.playNext(guildId);
+        } else {
+          this.nowPlaying.delete(guildId);
+          setTimeout(() => {
+            if (this.queues.get(guildId)?.length === 0 && !this.nowPlaying.get(guildId)) {
+              console.log(`🔄 Auto-disconnecting from guild ${guildId} - queue empty`);
+              this.leaveVoiceChannel(guildId);
+            }
+          }, 30000);
+        }
+      });
+
+      resource.playStream.on('close', () => {
+        console.log('⏹️ Audio stream closed.');
+      });
+
+      resource.playStream.on('error', error => {
+        console.error('❌ Audio resource stream error:', error);
+        const queue = this.queues.get(guildId);
+        if (queue && queue.length > 0) {
+          this.playNext(guildId);
+        }
       });
       
-      // Set up event handlers only once per player
-      if (!this.players.has(guildId + '_handlers')) {
-        player.on(AudioPlayerStatus.Playing, () => {
-          const currentTrack = this.nowPlaying.get(guildId);
-          if (currentTrack) {
-            console.log(`▶️ Started playing: ${currentTrack.title}`);
-          }
-        });
-        
-        player.on(AudioPlayerStatus.Idle, () => {
-          const currentTrack = this.nowPlaying.get(guildId);
-          if (currentTrack) {
-            console.log(`⏹️ Finished playing: ${currentTrack.title}`);
-          }
-          // Only call playNext if there are tracks in the queue
-          const queue = this.queues.get(guildId);
-          if (queue && queue.length > 0) {
-            this.playNext(guildId);
-          } else {
-            // No more tracks, clear now playing and auto-disconnect
-            this.nowPlaying.delete(guildId);
-            setTimeout(() => {
-              if (this.queues.get(guildId)?.length === 0 && !this.nowPlaying.get(guildId)) {
-                console.log(`🔄 Auto-disconnecting from guild ${guildId} - queue empty`);
-                this.leaveVoiceChannel(guildId);
-              }
-            }, 30000);
-          }
-        });
-        
-        player.on('error', error => {
-          console.error('Audio player error:', error);
-          // Don't auto-call playNext on error, let user handle it
-        });
-        
-        this.players.set(guildId + '_handlers', true);
-      }
-      
+      // Log any errors from the ytdlp process itself
+      ytdlp.stderr.on('data', (data) => {
+        console.error(`yt-dlp stderr: ${data}`);
+      });
+
       player.play(resource);
       console.log(`🎵 Playing: ${track.title}`);
-      
+
     } catch (error) {
       console.error('Error playing track:', error);
       throw new Error('Failed to play track. Please try again.');
     }
-  }
-
-  // Get stream URL using yt-dlp
-  async getStreamUrl(url) {
-    return new Promise((resolve, reject) => {
-      const ytdlp = spawn('yt-dlp', [
-        '--format', 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio',
-        '--dump-json',
-        '--no-playlist',
-        url
-      ]);
-      
-      let stdout = '';
-      let stderr = '';
-      
-      ytdlp.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-      
-      ytdlp.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-      
-      ytdlp.on('close', (code) => {
-        if (code === 0) {
-          try {
-            const videoInfo = JSON.parse(stdout);
-            console.log('📋 Video info received, formats available:', videoInfo.formats?.length || 0);
-            
-            // Extract the best audio URL with better format selection
-            const audioFormats = videoInfo.formats?.filter(f => 
-              f.acodec !== 'none' && 
-              f.vcodec === 'none' && 
-              (f.ext === 'm4a' || f.ext === 'webm' || f.ext === 'mp3')
-            ) || [];
-            
-            console.log('🎵 Audio formats found:', audioFormats.length);
-            
-            // Prioritize m4a, then webm, then others
-            const bestAudio = audioFormats.sort((a, b) => {
-              // Prefer m4a format
-              if (a.ext === 'm4a' && b.ext !== 'm4a') return -1;
-              if (b.ext === 'm4a' && a.ext !== 'm4a') return 1;
-              
-              // Then sort by bitrate
-              return (b.abr || 0) - (a.abr || 0);
-            })[0];
-            
-            if (bestAudio && bestAudio.url) {
-              console.log('🎯 Selected format:', bestAudio.ext, 'bitrate:', bestAudio.abr);
-              resolve(bestAudio.url);
-            } else {
-              reject(new Error('No audio stream found'));
-            }
-          } catch (parseError) {
-            reject(new Error(`Failed to parse yt-dlp output: ${parseError.message}`));
-          }
-        } else {
-          reject(new Error(`yt-dlp failed with code ${code}: ${stderr}`));
-        }
-      });
-      
-      ytdlp.on('error', (error) => {
-        reject(new Error(`Failed to spawn yt-dlp: ${error.message}`));
-      });
-    });
   }
 
   // Play next track in queue
@@ -344,7 +273,7 @@ class MusicManager {
       const searchUrl = `ytsearch${limit}:${query}`;
       
       const ytdlp = spawn('yt-dlp', [
-        '--format', 'bestaudio',
+        '--format', 'bestaudio/best',
         '--dump-json',
         '--no-playlist',
         searchUrl
@@ -400,7 +329,7 @@ class MusicManager {
   async getTrackInfo(url) {
     return new Promise((resolve, reject) => {
       const ytdlp = spawn('yt-dlp', [
-        '--format', 'bestaudio',
+        '--format', 'bestaudio/best',
         '--dump-json',
         '--no-playlist',
         url

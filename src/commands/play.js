@@ -36,7 +36,7 @@ module.exports = {
       }
       
       // Add to queue and play
-      const queuePosition = await musicManager.addToQueue(interaction.guildId, track);
+      const queuePosition = musicManager.addToQueue(interaction.guildId, track);
       
       const embed = new EmbedBuilder()
         .setColor(0x00ff00)
@@ -50,9 +50,10 @@ module.exports = {
         .setThumbnail(track.thumbnail || null)
         .setTimestamp();
       
-      if (queuePosition === 1) {
-        // Start playing immediately
-        await musicManager.playTrack(interaction.guildId, track);
+      // If nothing is currently playing, start the playback loop.
+      // playNext() will handle pulling the track from the queue.
+      if (!musicManager.getNowPlaying(interaction.guildId)) {
+        await musicManager.playNext(interaction.guildId);
         embed.setTitle('🎵 Now Playing');
       }
       
