@@ -160,16 +160,14 @@ class MusicManager {
       
       console.log('🔧 Audio resource created from direct stream.');
 
-      // Attach event listeners directly to the resource for this specific track
-      resource.playStream.on('start', () => {
-        const currentTrack = this.nowPlaying.get(guildId);
-        if (currentTrack) {
-          console.log(`▶️ Started playing: ${currentTrack.title}`);
-        }
-      });
+      // --- Unified End-of-Stream Logic ---
+      // This function is called when the stream is finished, closed, or errors.
+      const onStreamEnd = () => {
+        // Ensure this logic only runs once per resource.
+        if (resource.streamEnded) return;
+        resource.streamEnded = true;
 
-      resource.playStream.on('finish', () => {
-        this.streamProcesses.delete(guildId); // Clean up process reference on finish
+        this.streamProcesses.delete(guildId); // Clean up process reference
         const currentTrack = this.nowPlaying.get(guildId);
         if (currentTrack) {
           console.log(`⏹️ Finished playing: ${currentTrack.title}`);
@@ -186,19 +184,14 @@ class MusicManager {
             }
           }, 30000);
         }
-      });
+      };
 
-      resource.playStream.on('close', () => {
-        console.log('⏹️ Audio stream closed.');
-      });
-
-      resource.playStream.on('error', error => {
-        this.streamProcesses.delete(guildId); // Clean up process reference on error
+      // Attach the unified handler to all relevant stream events
+      resource.playStream.on('finish', onStreamEnd);
+      resource.playStream.on('close', onStreamEnd);
+      resource.playStream.on('error', (error) => {
         console.error('❌ Audio resource stream error:', error);
-        const queue = this.queues.get(guildId);
-        if (queue && queue.length > 0) {
-          this.playNext(guildId);
-        }
+        onStreamEnd(); // Still try to play the next song on error
       });
       
       // Log any errors from the ytdlp process itself
