@@ -7,6 +7,7 @@ class MusicManager {
     this.queues = new Map();
     this.nowPlaying = new Map();
     this.connections = new Map();
+    this.streamProcesses = new Map(); // Add a map to track yt-dlp processes
   }
 
   // Join a voice channel
@@ -83,6 +84,13 @@ class MusicManager {
   leaveVoiceChannel(guildId) {
     const connection = this.connections.get(guildId);
     const player = this.players.get(guildId);
+    const process = this.streamProcesses.get(guildId);
+
+    // Kill the streaming process if it exists
+    if (process) {
+      process.kill();
+      this.streamProcesses.delete(guildId);
+    }
     
     if (player) {
       player.stop();
@@ -142,6 +150,9 @@ class MusicManager {
         '--quiet', // Suppress verbose logs
       ]);
 
+      // Store the process so we can kill it later
+      this.streamProcesses.set(guildId, ytdlp);
+
       // Create audio resource from the ytdlp stdout stream
       const resource = createAudioResource(ytdlp.stdout, {
         inlineVolume: true,
@@ -158,6 +169,7 @@ class MusicManager {
       });
 
       resource.playStream.on('finish', () => {
+        this.streamProcesses.delete(guildId); // Clean up process reference on finish
         const currentTrack = this.nowPlaying.get(guildId);
         if (currentTrack) {
           console.log(`⏹️ Finished playing: ${currentTrack.title}`);
@@ -181,6 +193,7 @@ class MusicManager {
       });
 
       resource.playStream.on('error', error => {
+        this.streamProcesses.delete(guildId); // Clean up process reference on error
         console.error('❌ Audio resource stream error:', error);
         const queue = this.queues.get(guildId);
         if (queue && queue.length > 0) {
@@ -191,6 +204,11 @@ class MusicManager {
       // Log any errors from the ytdlp process itself
       ytdlp.stderr.on('data', (data) => {
         console.error(`yt-dlp stderr: ${data}`);
+      });
+
+      // Clean up process reference when the process exits
+      ytdlp.on('close', () => {
+        this.streamProcesses.delete(guildId);
       });
 
       player.play(resource);
@@ -242,7 +260,21 @@ class MusicManager {
 
   // Skip current track
   skipTrack(guildId) {
+    const process = this.streamProcesses.get(guildId);
     const player = this.players.get(guildId);
+
+    // Kill the streaming process if it exists, which will trigger the 'finish' event
+    if (process) {
+      process.kill();
+      this.streamProcesses.delete(guildId);
+      // The player will stop automatically when the stream ends.
+      // Calling player.stop() is redundant but safe.
+      if (player) {
+        player.stop();
+      }
+      return true;
+    }
+    
     if (player) {
       player.stop();
       return true;
