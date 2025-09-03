@@ -158,6 +158,7 @@ function App() {
               <ConnectionManager 
                 guildId={selectedGuild.id} 
                 isConnected={status.connected} 
+                canControl={status.canControl}
                 onConnectionChange={() => fetchStatus(selectedGuild.id)} 
               />
 
@@ -168,6 +169,7 @@ function App() {
                       guildId={selectedGuild.id} 
                       onApiCall={apiCall}
                       isLoading={isLoading}
+                      canControl={status.canControl}
                     />
                   </div>
                   <div className="panel queue-panel">
@@ -175,7 +177,8 @@ function App() {
                       guildId={selectedGuild.id} 
                       status={{...status, isLoading}} 
                       volume={status.volume}
-                      onApiCall={apiCall} 
+                      onApiCall={apiCall}
+                      canControl={status.canControl}
                     />
                   </div>
                 </div>

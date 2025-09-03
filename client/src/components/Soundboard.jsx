@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Soundboard.css';
 
-function Soundboard({ guildId, onApiCall, isLoading }) {
+function Soundboard({ guildId, onApiCall, isLoading, canControl }) {
   const [soundEffects, setSoundEffects] = useState([]);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ function Soundboard({ guildId, onApiCall, isLoading }) {
           key={effect.id}
           className="sfx-button"
           onClick={() => playSfx(effect.id)}
-          disabled={isLoading}
+          disabled={isLoading || !canControl}
         >
           {effect.name}
         </button>

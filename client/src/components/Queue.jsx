@@ -3,7 +3,7 @@ import PlayerControls from './PlayerControls';
 import ProgressBar from './ProgressBar';
 import './Queue.css';
 
-function Queue({ guildId, status, volume, onApiCall }) {
+function Queue({ guildId, status, volume, onApiCall, canControl }) {
   const [progress, setProgress] = useState(0);
   const progressIntervalRef = useRef(null);
 
@@ -54,6 +54,7 @@ function Queue({ guildId, status, volume, onApiCall }) {
         volume={volume}
         isLoading={status.isLoading}
         onApiCall={onApiCall}
+        canControl={canControl}
       />
 
       <h4>Now Playing</h4>
@@ -76,7 +77,7 @@ function Queue({ guildId, status, volume, onApiCall }) {
           <button 
             className="btn-clear"
             onClick={() => onApiCall(() => fetch(`/api/music/${guildId}/queue`, { method: 'DELETE' }))}
-            disabled={status.isLoading}
+            disabled={status.isLoading || !canControl}
           >
             Clear
           </button>
@@ -85,7 +86,7 @@ function Queue({ guildId, status, volume, onApiCall }) {
       <div className="queue-list">
         {(status.queue || []).length > 0 ? (
           (status.queue || []).map((track, index) => (
-            <div key={`${track.url}-${index}`} className="track clickable" onClick={() => playFromQueue(index)}>
+            <div key={`${track.url}-${index}`} className={`track ${canControl ? 'clickable' : ''}`} onClick={canControl ? () => playFromQueue(index) : undefined}>
               <span className="track-position">{index + 1}.</span>
               <p className="track-title">{track.title}</p>
             </div>
@@ -101,7 +102,7 @@ function Queue({ guildId, status, volume, onApiCall }) {
           <button 
             className="btn-clear"
             onClick={() => onApiCall(() => fetch(`/api/music/${guildId}/history`, { method: 'DELETE' }))}
-            disabled={status.isLoading}
+            disabled={status.isLoading || !canControl}
           >
             Clear
           </button>
@@ -110,7 +111,7 @@ function Queue({ guildId, status, volume, onApiCall }) {
       <div className="queue-list history-list">
         {(status.previousTracks || []).length > 0 ? (
           (status.previousTracks || []).map((track, index) => (
-            <div key={`${track.url}-${index}`} className="track history-track clickable" onClick={() => playTrackNow(track.url)}>
+            <div key={`${track.url}-${index}`} className={`track history-track ${canControl ? 'clickable' : ''}`} onClick={canControl ? () => playTrackNow(track.url) : undefined}>
               <span className="track-position">{index + 1}.</span>
               <p className="track-title">{track.title}</p>
             </div>
