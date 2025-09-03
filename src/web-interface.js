@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs').promises;
 const MusicManager = require('./utils/musicManager');
 
 class WebInterface {
@@ -146,16 +147,37 @@ class WebInterface {
       }
     });
     
+    // Get available sound effects from the manifest
+    this.app.get('/api/sfx', async (req, res) => {
+      try {
+        const manifestPath = path.join(__dirname, '../../sfx-manifest.json');
+        const data = await fs.readFile(manifestPath, 'utf8');
+        const effects = JSON.parse(data);
+        res.json(effects);
+      } catch (error) {
+        console.error('Error reading SFX manifest:', error);
+        res.status(500).json({ error: 'Could not retrieve sound effects.' });
+      }
+    });
+
     // Play sound effect command
     this.app.post('/api/music/:guildId/sfx', async (req, res) => {
       try {
         const { guildId } = req.params;
         const { effect } = req.body;
-        
+        const sfxBaseUrl = process.env.SFX_BASE_URL;
+
+        if (!sfxBaseUrl) {
+          return res.status(500).json({ error: 'SFX_BASE_URL is not configured on the server.' });
+        }
         if (!effect) {
           return res.status(400).json({ error: 'Effect is required' });
         }
         
+        // Construct the full URL. We assume a .mp3 extension for simplicity.
+        // A more advanced system could store extensions in the manifest.
+        const sfxUrl = `${sfxBaseUrl.replace(/\/$/, '')}/${effect}.mp3`;
+
         // Find the guild
         const guild = this.client.guilds.cache.get(guildId);
         if (!guild) {
@@ -174,21 +196,20 @@ class WebInterface {
         
         // Create sound effect track
         const sfxTrack = {
-          title: `Sound Effect: ${effect.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
-          url: this.getSoundEffectUrl(effect),
-          duration: 5,
-          author: 'Sound Effect',
-          thumbnail: null
+          title: `SFX: ${effect.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
+          url: sfxUrl,
+          author: 'Soundboard',
         };
         
-        // Play the sound effect immediately
-        await this.musicManager.playTrack(guildId, sfxTrack);
+        // Playskip the sound effect
+        this.musicManager.addToQueueFront(guildId, sfxTrack);
+        if (this.musicManager.getNowPlaying(guildId)) {
+          this.musicManager.skipTrack(guildId);
+        } else {
+          await this.musicManager.playNext(guildId);
+        }
         
-        res.json({
-          success: true,
-          track: sfxTrack,
-          message: 'Sound effect playing'
-        });
+        res.json({ success: true, track: sfxTrack });
         
       } catch (error) {
         console.error('Web API sfx error:', error);

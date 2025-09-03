@@ -1,36 +1,48 @@
-FROM node:20
-
-ENV FFMPEG_PATH=/usr/bin/ffmpeg
+# --- Stage 1: Build the React Frontend ---
+FROM node:20 AS client-builder
 
 WORKDIR /app
+COPY client/package*.json ./
+RUN npm install
+COPY client/ ./
+RUN npm run build
 
-COPY package*.json ./
+# --- Stage 2: Build the Node.js Backend ---
+FROM node:20
 
-# Install dependencies and build tools, then clean up
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Set a non-root user and create app directory
+RUN mkdir -p /home/node/app && chown -R node:node /home/node/app
+WORKDIR /home/node/app
+USER node
+
+# Copy backend package files and install dependencies
+COPY --chown=node:node package*.json ./
+RUN npm ci --only=production
+
+# Install necessary runtime dependencies
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3 \
     curl \
-    build-essential \
     && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
-    && npm ci --only=production \
-    && npm cache clean --force \
-    && apt-get purge -y --auto-remove build-essential \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-COPY . .
-
-# Use the built-in node user for security
-RUN chown -R node:node /app
 USER node
 
+# Copy the rest of the backend source code
+COPY --chown=node:node . .
+
+# Copy the built React app from the builder stage
+COPY --chown=node:node --from=client-builder /app/dist ./src/public
+
+# Expose ports
 EXPOSE 3000
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "console.log('Health check passed')" || exit 1
+# Set FFMPEG_PATH environment variable
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
 
+# Start the bot
 CMD ["npm", "start"]

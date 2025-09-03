@@ -1,0 +1,44 @@
+.connection-manager {
+  padding: 15px;
+  background-color: var(--secondary-bg);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.connection-manager button {
+  padding: 10px 20px;
+  border-radius: 5px;
+  border: none;
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.connection-manager button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-join {
+  background-color: #43b581; /* Discord Green */
+  color: white;
+}
+.btn-join:hover:not(:disabled) {
+  background-color: #3aa071;
+}
+
+.btn-leave {
+  background-color: #f04747; /* Discord Red */
+  color: white;
+}
+.btn-leave:hover:not(:disabled) {
+  background-color: #d84040;
+}
+
+.error-message {
+  color: #f04747;
+  margin-top: 10px;
+  font-weight: bold;
+}
