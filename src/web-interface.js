@@ -26,6 +26,8 @@ class WebInterface {
     this.client = client;
     this.app = express();
     this.musicManager = client.musicManager;
+    this.sfxManifestCache = null; // Cache for the SFX manifest
+    this.sfxCacheTimestamp = null; // Timestamp for the cache
     
     this.setupAuth();
     this.setupMiddleware();
@@ -243,12 +245,41 @@ class WebInterface {
     
     // Get available sound effects from the manifest
     this.app.get('/api/sfx', this.ensureAuthenticated, async (req, res) => {
+      const cacheDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+      // Check if cache is valid
+      if (this.sfxManifestCache && (Date.now() - this.sfxCacheTimestamp < cacheDuration)) {
+        return res.json(this.sfxManifestCache);
+      }
+
       try {
-        // The manifest is now an in-memory constant.
-        res.json(SFX_MANIFEST);
+        const sfxBaseUrl = process.env.SFX_BASE_URL;
+        if (!sfxBaseUrl) {
+          throw new Error('SFX_BASE_URL is not configured.');
+        }
+
+        const manifestUrl = `${sfxBaseUrl.replace(/\/$/, '')}/manifest.json`;
+        const response = await fetch(manifestUrl);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch manifest: ${response.statusText}`);
+        }
+
+        const manifest = await response.json();
+
+        // Update cache
+        this.sfxManifestCache = manifest;
+        this.sfxCacheTimestamp = Date.now();
+
+        res.json(manifest);
       } catch (error) {
-        console.error('Error serving SFX manifest:', error);
-        res.status(500).json({ error: 'Could not retrieve sound effects.' });
+        console.error('Error fetching or serving SFX manifest:', error);
+        // Serve the old cache if available, otherwise send an error
+        if (this.sfxManifestCache) {
+          res.json(this.sfxManifestCache);
+        } else {
+          res.status(500).json({ error: 'Could not retrieve sound effects.' });
+        }
       }
     });
 
@@ -268,8 +299,15 @@ class WebInterface {
           return res.status(400).json({ error: 'Effect is required' });
         }
         
+        // Ensure the manifest is loaded before proceeding
+        if (!this.sfxManifestCache) {
+          // You might want to trigger a fetch here or just rely on the client having fetched it.
+          // For simplicity, we'll assume the client has already triggered a fetch via the /api/sfx endpoint.
+          return res.status(503).json({ error: 'SFX manifest not yet loaded. Please try again in a moment.' });
+        }
+
         // Find the sound effect in the manifest to get its format
-        const sfxData = SFX_MANIFEST.find(s => s.id === effect);
+        const sfxData = this.sfxManifestCache.find(s => s.id === effect);
 
         if (!sfxData) {
           return res.status(404).json({ error: 'Sound effect not found in manifest.' });
@@ -585,21 +623,6 @@ class WebInterface {
         res.status(500).json({ error: error.message });
       }
     });
-  }
-  
-  getSoundEffectUrl(effect) {
-    const sfxUrls = {
-      'party_horn': 'https://example.com/sounds/party_horn.mp3',
-      'applause': 'https://example.com/sounds/applause.mp3',
-      'bell': 'https://example.com/sounds/bell.mp3',
-      'alert': 'https://example.com/sounds/alert.mp3',
-      'drum_roll': 'https://example.com/sounds/drum_roll.mp3',
-      'fanfare': 'https://example.com/sounds/fanfare.mp3',
-      'notification': 'https://example.com/sounds/notification.mp3',
-      'celebration': 'https://example.com/sounds/celebration.mp3'
-    };
-    
-    return sfxUrls[effect] || sfxUrls['bell'];
   }
   
   // Helper method to check if a string is a YouTube URL
