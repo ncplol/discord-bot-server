@@ -2,6 +2,10 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
 const MusicManager = require('./utils/musicManager');
+const session = require('express-session');
+const passport = require('passport');
+const DiscordStrategy = require('passport-discord').Strategy;
+const cors = require('cors');
 
 // SFX manifest is now embedded in the code to avoid filesystem issues in containers.
 const SFX_MANIFEST = [
@@ -23,20 +27,80 @@ class WebInterface {
     this.app = express();
     this.musicManager = client.musicManager;
     
+    this.setupAuth();
     this.setupMiddleware();
     this.setupRoutes();
   }
   
+  setupAuth() {
+    passport.serializeUser((user, done) => done(null, user));
+    passport.deserializeUser((obj, done) => done(null, obj));
+
+    passport.use(new DiscordStrategy({
+      clientID: process.env.DISCORD_CLIENT_ID,
+      clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      callbackURL: process.env.DISCORD_CALLBACK_URL,
+      scope: ['identify', 'guilds']
+    }, (accessToken, refreshToken, profile, done) => {
+      process.nextTick(() => done(null, profile));
+    }));
+  }
+
   setupMiddleware() {
+    this.app.use(cors({
+      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      credentials: true
+    }));
     this.app.use(express.json());
     this.app.use(express.static(path.join(__dirname, 'public')));
+    
+    this.app.use(session({
+      secret: process.env.SESSION_SECRET || 'secret',
+      resave: false,
+      saveUninitialized: false,
+    }));
+
+    this.app.use(passport.initialize());
+    this.app.use(passport.session());
   }
   
+  ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+      return next();
+    }
+    res.status(401).json({ error: 'Not authenticated' });
+  }
+
   setupRoutes() {
+    // Auth routes
+    this.app.get('/api/auth/discord', passport.authenticate('discord'));
+
+    this.app.get('/api/auth/discord/callback', passport.authenticate('discord', {
+      failureRedirect: `${process.env.FRONTEND_URL}/login-failed`
+    }), (req, res) => {
+      res.redirect(process.env.FRONTEND_URL || '/'); // Redirect to frontend
+    });
+
+    this.app.get('/api/auth/user', (req, res) => {
+      res.json(req.user || null);
+    });
+
+    this.app.post('/api/auth/logout', (req, res) => {
+      req.logout((err) => {
+        if (err) {
+          return res.status(500).json({ error: 'Logout failed' });
+        }
+        req.session.destroy(() => {
+          res.clearCookie('connect.sid');
+          res.json({ success: true, message: 'Logged out' });
+        });
+      });
+    });
+
     // API endpoints for bot control
     
     // Get bot status
-    this.app.get('/api/status', (req, res) => {
+    this.app.get('/api/status', this.ensureAuthenticated, (req, res) => {
       res.json({
         status: 'online',
         guilds: this.client.guilds.cache.size,
@@ -46,7 +110,7 @@ class WebInterface {
     });
     
     // Get music status for a specific guild
-    this.app.get('/api/music/:guildId', (req, res) => {
+    this.app.get('/api/music/:guildId', this.ensureAuthenticated, (req, res) => {
       const { guildId } = req.params;
       
       const nowPlaying = this.musicManager.getNowPlaying(guildId);
@@ -62,7 +126,7 @@ class WebInterface {
     });
     
     // Play music command (now with modes)
-    this.app.post('/api/music/:guildId/play', async (req, res) => {
+    this.app.post('/api/music/:guildId/play', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const { query, mode = 'queue' } = req.body; // Default to 'queue'
@@ -122,7 +186,7 @@ class WebInterface {
     });
     
     // Stop music command
-    this.app.post('/api/music/:guildId/stop', async (req, res) => {
+    this.app.post('/api/music/:guildId/stop', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -140,7 +204,7 @@ class WebInterface {
     });
     
     // Skip track command
-    this.app.post('/api/music/:guildId/skip', async (req, res) => {
+    this.app.post('/api/music/:guildId/skip', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -162,7 +226,7 @@ class WebInterface {
     });
     
     // Get available sound effects from the manifest
-    this.app.get('/api/sfx', async (req, res) => {
+    this.app.get('/api/sfx', this.ensureAuthenticated, async (req, res) => {
       try {
         // The manifest is now an in-memory constant.
         res.json(SFX_MANIFEST);
@@ -173,7 +237,7 @@ class WebInterface {
     });
 
     // Play sound effect command
-    this.app.post('/api/music/:guildId/sfx', async (req, res) => {
+    this.app.post('/api/music/:guildId/sfx', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const { effect } = req.body;
@@ -239,7 +303,7 @@ class WebInterface {
     });
     
     // Pause/Resume command
-    this.app.post('/api/music/:guildId/pause', async (req, res) => {
+    this.app.post('/api/music/:guildId/pause', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const result = this.musicManager.togglePause(guildId);
@@ -255,7 +319,7 @@ class WebInterface {
     });
 
     // Previous track command
-    this.app.post('/api/music/:guildId/previous', async (req, res) => {
+    this.app.post('/api/music/:guildId/previous', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const success = await this.musicManager.playPrevious(guildId);
@@ -271,7 +335,7 @@ class WebInterface {
     });
 
     // Remove a track from the queue
-    this.app.delete('/api/music/:guildId/queue/:trackIndex', async (req, res) => {
+    this.app.delete('/api/music/:guildId/queue/:trackIndex', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId, trackIndex } = req.params;
         const index = parseInt(trackIndex, 10);
@@ -294,7 +358,7 @@ class WebInterface {
     });
 
     // Clear the entire queue
-    this.app.delete('/api/music/:guildId/queue', async (req, res) => {
+    this.app.delete('/api/music/:guildId/queue', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const success = this.musicManager.clearQueue(guildId);
@@ -311,7 +375,7 @@ class WebInterface {
     });
 
     // Clear the history
-    this.app.delete('/api/music/:guildId/history', async (req, res) => {
+    this.app.delete('/api/music/:guildId/history', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const success = this.musicManager.clearHistory(guildId);
@@ -327,7 +391,7 @@ class WebInterface {
     });
 
     // Play a specific track from the queue
-    this.app.post('/api/music/:guildId/queue/play/:trackIndex', async (req, res) => {
+    this.app.post('/api/music/:guildId/queue/play/:trackIndex', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId, trackIndex } = req.params;
         const index = parseInt(trackIndex, 10);
@@ -353,19 +417,27 @@ class WebInterface {
     });
 
     // Get available guilds
-    this.app.get('/api/guilds', (req, res) => {
-      const guilds = this.client.guilds.cache.map(guild => ({
-        id: guild.id,
-        name: guild.name,
-        memberCount: guild.memberCount,
-        icon: guild.iconURL()
+    this.app.get('/api/guilds', this.ensureAuthenticated, (req, res) => {
+      if (!req.user || !req.user.guilds) {
+        return res.status(403).json({ error: 'Could not retrieve guilds for user.' });
+      }
+      
+      const userGuilds = new Set(req.user.guilds.map(g => g.id));
+      
+      const guilds = this.client.guilds.cache
+        .filter(guild => userGuilds.has(guild.id))
+        .map(guild => ({
+          id: guild.id,
+          name: guild.name,
+          memberCount: guild.memberCount,
+          icon: guild.iconURL()
       }));
       
       res.json(guilds);
     });
     
     // Join voice channel command
-    this.app.post('/api/music/:guildId/join', async (req, res) => {
+    this.app.post('/api/music/:guildId/join', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -404,7 +476,7 @@ class WebInterface {
     });
     
     // Leave voice channel command
-    this.app.post('/api/music/:guildId/leave', async (req, res) => {
+    this.app.post('/api/music/:guildId/leave', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -422,7 +494,7 @@ class WebInterface {
     });
     
     // Get voice status
-    this.app.get('/api/music/:guildId/status', (req, res) => {
+    this.app.get('/api/music/:guildId/status', this.ensureAuthenticated, (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -462,7 +534,7 @@ class WebInterface {
     });
 
     // Set loop mode command
-    this.app.post('/api/music/:guildId/loop', async (req, res) => {
+    this.app.post('/api/music/:guildId/loop', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const { mode } = req.body;
@@ -481,7 +553,7 @@ class WebInterface {
     });
 
     // Set volume command
-    this.app.post('/api/music/:guildId/volume', async (req, res) => {
+    this.app.post('/api/music/:guildId/volume', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
         const { level } = req.body;

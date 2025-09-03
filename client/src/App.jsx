@@ -4,11 +4,14 @@ import Queue from './components/Queue';
 import ConnectionManager from './components/ConnectionManager';
 import './App.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 function App() {
   const [guilds, setGuilds] = useState([]);
   const [selectedGuild, setSelectedGuild] = useState(null);
   const [status, setStatus] = useState({ connected: false, queue: [], previousTracks: [] });
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(null);
 
   const apiCall = async (apiFunction) => {
     setIsLoading(true);
@@ -30,8 +33,11 @@ function App() {
   const fetchStatus = async (guildId) => {
     if (!guildId) return;
     try {
-      const response = await fetch(`/api/music/${guildId}/status`);
-      if (!response.ok) throw new Error('Failed to fetch status');
+      const response = await fetch(`${API_BASE_URL}/api/music/${guildId}/status`);
+      if (!response.ok) {
+        if (response.status === 401) setUser(null); // Logged out
+        throw new Error('Failed to fetch status');
+      }
       const data = await response.json();
       setStatus(data);
     } catch (error) {
@@ -41,27 +47,41 @@ function App() {
     }
   };
   
-  // Effect to fetch guilds on initial load
+  // Effect to fetch user and guilds on initial load
   useEffect(() => {
-    // Fetch the list of guilds the bot is in
-    const fetchGuilds = async () => {
+    const fetchUserAndGuilds = async () => {
       try {
-        const response = await fetch('/api/guilds');
-        if (!response.ok) {
-          throw new Error('Failed to fetch guilds');
-        }
-        const data = await response.json();
-        setGuilds(data);
-        // Automatically select the first guild
-        if (data.length > 0) {
-          setSelectedGuild(data[0]);
+        // Fetch user
+        const userResponse = await fetch(`${API_BASE_URL}/api/auth/user`);
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          if (userData) {
+            setUser(userData);
+            // Fetch guilds only if user is logged in
+            const guildsResponse = await fetch(`${API_BASE_URL}/api/guilds`);
+            if (!guildsResponse.ok) {
+              throw new Error('Failed to fetch guilds');
+            }
+            const guildsData = await guildsResponse.json();
+            setGuilds(guildsData);
+            if (guildsData.length > 0) {
+              setSelectedGuild(guildsData[0]);
+            }
+          } else {
+            setUser(null);
+            setGuilds([]);
+            setSelectedGuild(null);
+          }
+        } else {
+          setUser(null);
         }
       } catch (error) {
-        console.error('Error fetching guilds:', error);
+        console.error('Error fetching initial data:', error);
+        setUser(null);
       }
     };
 
-    fetchGuilds();
+    fetchUserAndGuilds();
   }, []);
 
   // Effect to poll for status updates for the selected guild
@@ -73,6 +93,17 @@ function App() {
     }
   }, [selectedGuild]);
 
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST' });
+      setUser(null);
+      setGuilds([]);
+      setSelectedGuild(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
 
   return (
     <div className="App">
@@ -81,55 +112,84 @@ function App() {
           <img src="/favicon.svg" alt="Bot Icon" className="header-logo" />
           <h1>Bard Bot Control Panel</h1>
         </div>
-        {guilds.length > 0 && (
-          <div className="guild-selector-container">
-            <label htmlFor="guild-select">Server:</label>
-            <select 
-              id="guild-select"
-              onChange={(e) => setSelectedGuild(guilds.find(g => g.id === e.target.value))}
-              value={selectedGuild?.id || ''}
-              className="guild-selector"
-            >
-              {guilds.map((guild) => (
-                <option key={guild.id} value={guild.id}>
-                  {guild.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </header>
-
-      {selectedGuild && (
-        <main className="main-content">
-          <ConnectionManager 
-            guildId={selectedGuild.id} 
-            isConnected={status.connected} 
-            onConnectionChange={() => fetchStatus(selectedGuild.id)} 
-          />
-
-          {status.connected ? (
-            <div className="panels">
-              <div className="panel soundboard-panel">
-                <Soundboard 
-                  guildId={selectedGuild.id} 
-                  onApiCall={apiCall}
-                  isLoading={isLoading}
-                />
-              </div>
-              <div className="panel queue-panel">
-                <Queue 
-                  guildId={selectedGuild.id} 
-                  status={{...status, isLoading}} 
-                  volume={status.volume}
-                  onApiCall={apiCall} 
-                />
-              </div>
+        <div className="header-right">
+          {user ? (
+            <div className="user-info">
+              <img 
+                src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} 
+                alt="User Avatar" 
+                className="user-avatar"
+              />
+              <span>{user.username}</span>
+              <button onClick={handleLogout} className="btn-logout">Logout</button>
             </div>
           ) : (
-            <p className="status-message">Bot is not in a voice channel. Click "Join Channel" to start.</p>
+            <a href={`${API_BASE_URL}/api/auth/discord`} className="btn-login">
+              Login with Discord
+            </a>
           )}
-        </main>
+        </div>
+      </header>
+      
+      {!user ? (
+        <div className="login-prompt">
+          <h2>Please login with Discord to continue.</h2>
+        </div>
+      ) : (
+        <>
+          {guilds.length > 0 && selectedGuild ? (
+            <main className="main-content">
+              <div className="guild-selector-container">
+                <label htmlFor="guild-select">Server:</label>
+                <select 
+                  id="guild-select"
+                  onChange={(e) => setSelectedGuild(guilds.find(g => g.id === e.target.value))}
+                  value={selectedGuild?.id || ''}
+                  className="guild-selector"
+                >
+                  {guilds.map((guild) => (
+                    <option key={guild.id} value={guild.id}>
+                      {guild.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <ConnectionManager 
+                guildId={selectedGuild.id} 
+                isConnected={status.connected} 
+                onConnectionChange={() => fetchStatus(selectedGuild.id)} 
+              />
+
+              {status.connected ? (
+                <div className="panels">
+                  <div className="panel soundboard-panel">
+                    <Soundboard 
+                      guildId={selectedGuild.id} 
+                      onApiCall={apiCall}
+                      isLoading={isLoading}
+                    />
+                  </div>
+                  <div className="panel queue-panel">
+                    <Queue 
+                      guildId={selectedGuild.id} 
+                      status={{...status, isLoading}} 
+                      volume={status.volume}
+                      onApiCall={apiCall} 
+                    />
+                  </div>
+                </div>
+              ) : (
+                <p className="status-message">Bot is not in a voice channel. Click "Join Channel" to start.</p>
+              )}
+            </main>
+          ) : (
+            <div className="no-guilds-prompt">
+              <h2>It looks like you don't share any servers with this bot.</h2>
+              <p>Please make sure you're logged in with the correct Discord account and that the bot has been added to a server you are in.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

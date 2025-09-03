@@ -31,6 +31,60 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.btn-login, .btn-logout {
+  padding: 8px 15px;
+  border-radius: 5px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.btn-login {
+  background-color: var(--accent-color);
+  color: white;
+}
+.btn-login:hover {
+  background-color: #5b6eae;
+}
+
+.btn-logout {
+  background-color: var(--secondary-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+.btn-logout:hover {
+  background-color: #4f545c;
+}
+
+.login-prompt, .no-guilds-prompt {
+  padding: 50px 20px;
+  text-align: center;
+}
+
+.login-prompt h2, .no-guilds-prompt h2 {
+  font-size: 1.8em;
+  margin-bottom: 10px;
+}
+
 .header-title {
   display: flex;
   align-items: center;
