@@ -1,10 +1,10 @@
 [
-  "party_horn",
-  "applause",
-  "bell",
-  "alert",
-  "drum_roll",
-  "fanfare",
-  "notification",
-  "celebration"
+  {
+    "id": "SFX_TURN_OFF_PC",
+    "name": "PC Turn Off"
+  },
+  {
+    "id": "SFX_TURN_ON_PC",
+    "name": "PC Turn On"
+  }
 ]

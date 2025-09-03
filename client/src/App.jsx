@@ -111,7 +111,11 @@ function App() {
           {status.connected ? (
             <div className="panels">
               <div className="panel soundboard-panel">
-                <Soundboard guildId={selectedGuild.id} />
+                <Soundboard 
+                  guildId={selectedGuild.id} 
+                  onApiCall={apiCall}
+                  isLoading={isLoading}
+                />
               </div>
               <div className="panel queue-panel">
                 <Queue 

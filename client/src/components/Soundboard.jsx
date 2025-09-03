@@ -1,40 +1,54 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './Soundboard.css';
 
-const soundEffects = [
-  'party_horn', 'applause', 'bell', 'alert',
-  'drum_roll', 'fanfare', 'notification', 'celebration'
-];
+function Soundboard({ guildId, onApiCall, isLoading }) {
+  const [soundEffects, setSoundEffects] = useState([]);
 
-function Soundboard({ guildId }) {
-  const playSfx = async (effect) => {
-    try {
+  useEffect(() => {
+    const fetchSfx = async () => {
+      try {
+        const response = await fetch('/api/sfx');
+        if (!response.ok) {
+          throw new Error('Failed to fetch sound effects');
+        }
+        const data = await response.json();
+        setSoundEffects(data);
+      } catch (error) {
+        console.error('Error fetching SFX list:', error);
+      }
+    };
+
+    fetchSfx();
+  }, []);
+
+  const playSfx = (effectId) => {
+    onApiCall(async () => {
       const response = await fetch(`/api/music/${guildId}/sfx`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ effect }),
+        body: JSON.stringify({ effect: effectId }),
       });
       if (!response.ok) {
-        throw new Error('Failed to play sound effect');
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to play sound effect');
       }
-      // You could add a visual confirmation here if you'd like
-      console.log(`Played ${effect}`);
-    } catch (error) {
-      console.error('Error playing sound effect:', error);
-    }
+      console.log(`Played ${effectId}`);
+      return await response.json();
+    });
   };
 
   return (
     <div className="soundboard-grid">
       {soundEffects.map((effect) => (
         <button
-          key={effect}
+          key={effect.id}
           className="sfx-button"
-          onClick={() => playSfx(effect)}
+          onClick={() => playSfx(effect.id)}
+          disabled={isLoading}
         >
-          {effect.replace('_', ' ')}
+          {effect.name}
         </button>
       ))}
     </div>
