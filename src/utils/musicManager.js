@@ -339,6 +339,25 @@ class MusicManager {
     return false;
   }
 
+  // Get the current volume
+  getVolume(guildId) {
+    const player = this.players.get(guildId);
+    if (player && player.state.resource && player.state.resource.volume) {
+      return Math.round(player.state.resource.volume.volume * 100);
+    }
+    return 100; // Default volume
+  }
+
+  // Set the playback volume
+  setVolume(guildId, level) {
+    const player = this.players.get(guildId);
+    if (player && player.state.resource && player.state.resource.volume) {
+      player.state.resource.volume.setVolume(level / 100);
+      return true;
+    }
+    return false;
+  }
+
   // Move a track from a given index to the front of the queue
   moveTrack(guildId, fromIndex, toIndex = 0) {
     const queue = this.queues.get(guildId);

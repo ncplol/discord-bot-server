@@ -405,6 +405,7 @@ class WebInterface {
           playerStatus: player?.state.status || 'idle',
           playbackDuration: player?.state.status === 'playing' ? player.state.playbackDuration : 0,
           loopMode: this.musicManager.loopModes.get(guildId) || 'none',
+          volume: this.musicManager.getVolume(guildId),
           connectionInfo,
           nowPlaying,
           queue,
@@ -433,6 +434,29 @@ class WebInterface {
         }
       } catch (error) {
         console.error('Web API loop error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Set volume command
+    this.app.post('/api/music/:guildId/volume', async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        const { level } = req.body;
+
+        if (level === undefined || level < 0 || level > 200) {
+          return res.status(400).json({ error: 'Invalid volume level specified.' });
+        }
+
+        const success = this.musicManager.setVolume(guildId, level);
+
+        if (success) {
+          res.json({ success: true, message: `Volume set to ${level}%` });
+        } else {
+          res.status(400).json({ error: 'Could not set volume. Is a track playing?' });
+        }
+      } catch (error) {
+        console.error('Web API volume error:', error);
         res.status(500).json({ error: error.message });
       }
     });
