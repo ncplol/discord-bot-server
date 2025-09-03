@@ -524,6 +524,55 @@ class MusicManager {
       });
     });
   }
+
+  // Get all tracks from a playlist URL
+  async getPlaylistTracks(url) {
+    return new Promise((resolve, reject) => {
+      const ytdlp = spawn('yt-dlp', [
+        '--flat-playlist',
+        '--dump-json',
+        url
+      ]);
+
+      let stdout = '';
+      let stderr = '';
+
+      ytdlp.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      ytdlp.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      ytdlp.on('close', (code) => {
+        if (code === 0) {
+          try {
+            const lines = stdout.trim().split('\n').filter(line => line.trim());
+            const tracks = lines.map(line => {
+              const videoInfo = JSON.parse(line);
+              return {
+                title: videoInfo.title || 'Unknown Title',
+                url: `https://www.youtube.com/watch?v=${videoInfo.id}`,
+                duration: videoInfo.duration || 0,
+                thumbnail: `https://i.ytimg.com/vi/${videoInfo.id}/hqdefault.jpg`,
+                author: videoInfo.uploader || 'Unknown',
+              };
+            });
+            resolve(tracks);
+          } catch (parseError) {
+            reject(new Error(`Failed to parse yt-dlp playlist output: ${parseError.message}`));
+          }
+        } else {
+          reject(new Error(`yt-dlp (playlist) failed with code ${code}: ${stderr}`));
+        }
+      });
+
+      ytdlp.on('error', (error) => {
+        reject(new Error(`Failed to spawn yt-dlp for playlist: ${error.message}`));
+      });
+    });
+  }
 }
 
 module.exports = MusicManager;

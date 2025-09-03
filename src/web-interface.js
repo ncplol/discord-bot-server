@@ -150,13 +150,29 @@ class WebInterface {
           await this.musicManager.joinVoiceChannel(mockInteraction);
         }
 
+        const wasPlaying = this.musicManager.getNowPlaying(guildId);
+
+        if (this.isYouTubePlaylistUrl(query)) {
+          const tracks = await this.musicManager.getPlaylistTracks(query);
+          if (!tracks || tracks.length === 0) {
+            return res.status(404).json({ error: 'Could not find any videos in the playlist.' });
+          }
+          
+          tracks.forEach(track => this.musicManager.addToQueue(guildId, track));
+          
+          if (!wasPlaying) {
+            await this.musicManager.playNext(guildId);
+          }
+          
+          return res.json({ success: true, message: `Added ${tracks.length} tracks to the queue.` });
+        }
+
+
         const track = await this.musicManager.getTrackInfo(query);
         if (!track) {
           return res.status(404).json({ error: 'No track found for your query.' });
         }
         
-        const wasPlaying = this.musicManager.getNowPlaying(guildId);
-
         let message = '';
         if (mode === 'next') {
           this.musicManager.addToQueueFront(guildId, track);
@@ -603,6 +619,11 @@ class WebInterface {
     return youtubePatterns.some(pattern => pattern.test(query));
   }
   
+  isYouTubePlaylistUrl(query) {
+    const playlistPattern = /^https?:\/\/(www\.)?youtube\.com\/playlist\?list=/;
+    return playlistPattern.test(query);
+  }
+
   start(port = 3001) {
     this.app.listen(port, () => {
       console.log(`🌐 Web interface listening on port ${port}`);
