@@ -319,6 +319,26 @@ class MusicManager {
     return false;
   }
 
+  // Clear the queue for a guild
+  clearQueue(guildId) {
+    if (this.queues.has(guildId)) {
+      this.queues.set(guildId, []);
+      console.log(`🧹 Cleared queue for guild ${guildId}`);
+      return true;
+    }
+    return false;
+  }
+
+  // Clear the history for a guild
+  clearHistory(guildId) {
+    if (this.previousTracks.has(guildId)) {
+      this.previousTracks.set(guildId, []);
+      console.log(`🧹 Cleared history for guild ${guildId}`);
+      return true;
+    }
+    return false;
+  }
+
   // Move a track from a given index to the front of the queue
   moveTrack(guildId, fromIndex, toIndex = 0) {
     const queue = this.queues.get(guildId);

@@ -251,6 +251,39 @@ class WebInterface {
       }
     });
 
+    // Clear the entire queue
+    this.app.delete('/api/music/:guildId/queue', async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        const success = this.musicManager.clearQueue(guildId);
+        if (success) {
+          res.json({ success: true, message: 'Queue cleared.' });
+        } else {
+          // This might happen if there was no queue to begin with, which is fine.
+          res.json({ success: true, message: 'Queue was already empty.' });
+        }
+      } catch (error) {
+        console.error('Web API clear queue error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Clear the history
+    this.app.delete('/api/music/:guildId/history', async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        const success = this.musicManager.clearHistory(guildId);
+        if (success) {
+          res.json({ success: true, message: 'History cleared.' });
+        } else {
+          res.json({ success: true, message: 'History was already empty.' });
+        }
+      } catch (error) {
+        console.error('Web API clear history error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Play a specific track from the queue
     this.app.post('/api/music/:guildId/queue/play/:trackIndex', async (req, res) => {
       try {
