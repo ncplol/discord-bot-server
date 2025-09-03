@@ -6,6 +6,7 @@ class MusicManager {
     this.players = new Map();
     this.queues = new Map();
     this.previousTracks = new Map(); // For the 'previous' command
+    this.loopModes = new Map(); // 'none', 'track', 'queue'
     this.nowPlaying = new Map();
     this.connections = new Map();
     this.streamProcesses = new Map(); // Add a map to track yt-dlp processes
@@ -184,9 +185,18 @@ class MusicManager {
 
         this.streamProcesses.delete(guildId); // Clean up process reference
         const currentTrack = this.nowPlaying.get(guildId);
+        const loopMode = this.loopModes.get(guildId) || 'none';
+
         if (currentTrack) {
           console.log(`⏹️ Finished playing: ${currentTrack.title}`);
+          // Handle looping
+          if (loopMode === 'track') {
+            this.queues.get(guildId).unshift(currentTrack); // Re-add to front
+          } else if (loopMode === 'queue') {
+            this.queues.get(guildId).push(currentTrack); // Re-add to end
+          }
         }
+
         const queue = this.queues.get(guildId);
         if (queue && queue.length > 0) {
           this.playNext(guildId);
@@ -297,6 +307,16 @@ class MusicManager {
     this.skipTrack(guildId);
 
     return true;
+  }
+
+  // Set the loop mode for a guild
+  setLoopMode(guildId, mode) {
+    if (['none', 'track', 'queue'].includes(mode)) {
+      this.loopModes.set(guildId, mode);
+      console.log(`🔁 Loop mode for guild ${guildId} set to: ${mode}`);
+      return true;
+    }
+    return false;
   }
 
   // Move a track from a given index to the front of the queue

@@ -46,58 +46,59 @@ class WebInterface {
       });
     });
     
-    // Play music command
+    // Play music command (now with modes)
     this.app.post('/api/music/:guildId/play', async (req, res) => {
       try {
         const { guildId } = req.params;
-        const { query } = req.body;
+        const { query, mode = 'queue' } = req.body; // Default to 'queue'
         
         if (!query) {
           return res.status(400).json({ error: 'Query is required' });
         }
         
-        // Find the guild
         const guild = this.client.guilds.cache.get(guildId);
         if (!guild) {
           return res.status(404).json({ error: 'Guild not found' });
         }
         
-        // Create a mock interaction for the music manager
-        const mockInteraction = {
-          guildId,
-          guild,
-          member: { voice: { channel: guild.channels.cache.find(c => c.type === 2) } } // Find first voice channel
-        };
-        
-        // Join voice channel
-        await this.musicManager.joinVoiceChannel(mockInteraction);
-        
-        let track;
-        
-        // Check if it's a URL or search query
-        if (this.isYouTubeUrl(query)) {
-          track = await this.musicManager.getTrackInfo(query);
-        } else {
-          const results = await this.musicManager.searchTracks(query, 1);
-          if (results.length === 0) {
-            return res.status(404).json({ error: 'No tracks found' });
+        // Find a voice channel to join if not connected
+        if (!this.musicManager.connections.has(guildId)) {
+          const voiceChannel = guild.channels.cache.find(c => c.type === 2);
+          if (!voiceChannel) {
+            return res.status(400).json({ error: 'No voice channels found to join.' });
           }
-          track = results[0];
+          const mockInteraction = { guildId, guild, member: { voice: { channel: voiceChannel } } };
+          await this.musicManager.joinVoiceChannel(mockInteraction);
+        }
+
+        const track = await this.musicManager.getTrackInfo(query);
+        if (!track) {
+          return res.status(404).json({ error: 'No track found for your query.' });
         }
         
-        // Add to queue and play
-        const queuePosition = await this.musicManager.addToQueue(guildId, track);
-        
-        if (queuePosition === 1) {
-          await this.musicManager.playTrack(guildId, track);
+        const wasPlaying = this.musicManager.getNowPlaying(guildId);
+
+        let message = '';
+        if (mode === 'next') {
+          this.musicManager.addToQueueFront(guildId, track);
+          message = `Added to front of queue: ${track.title}`;
+        } else if (mode === 'now') {
+          this.musicManager.addToQueueFront(guildId, track);
+          if (wasPlaying) {
+            this.musicManager.skipTrack(guildId);
+          }
+          message = `Now playing: ${track.title}`;
+        } else { // mode === 'queue'
+          this.musicManager.addToQueue(guildId, track);
+          message = `Added to queue: ${track.title}`;
+        }
+
+        // If nothing was playing, start the playback loop
+        if (!wasPlaying) {
+          await this.musicManager.playNext(guildId);
         }
         
-        res.json({
-          success: true,
-          track,
-          queuePosition,
-          message: queuePosition === 1 ? 'Now playing' : 'Added to queue'
-        });
+        res.json({ success: true, message, track });
         
       } catch (error) {
         console.error('Web API play error:', error);
@@ -370,6 +371,7 @@ class WebInterface {
           connected: isConnected,
           playerStatus: player?.state.status || 'idle',
           playbackDuration: player?.state.status === 'playing' ? player.state.playbackDuration : 0,
+          loopMode: this.musicManager.loopModes.get(guildId) || 'none',
           connectionInfo,
           nowPlaying,
           queue,
@@ -379,6 +381,25 @@ class WebInterface {
         
       } catch (error) {
         console.error('Web API status error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Set loop mode command
+    this.app.post('/api/music/:guildId/loop', async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        const { mode } = req.body;
+        
+        const success = this.musicManager.setLoopMode(guildId, mode);
+        
+        if (success) {
+          res.json({ success: true, message: `Loop mode set to ${mode}` });
+        } else {
+          res.status(400).json({ error: 'Invalid loop mode specified.' });
+        }
+      } catch (error) {
+        console.error('Web API loop error:', error);
         res.status(500).json({ error: error.message });
       }
     });
