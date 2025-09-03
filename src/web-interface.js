@@ -3,6 +3,18 @@ const path = require('path');
 const fs = require('fs').promises;
 const MusicManager = require('./utils/musicManager');
 
+// SFX manifest is now embedded in the code to avoid filesystem issues in containers.
+const SFX_MANIFEST = [
+  {
+    "id": "SFX_TURN_OFF_PC",
+    "name": "PC Turn Off"
+  },
+  {
+    "id": "SFX_TURN_ON_PC",
+    "name": "PC Turn On"
+  }
+];
+
 class WebInterface {
   constructor(client) {
     this.client = client;
@@ -150,12 +162,10 @@ class WebInterface {
     // Get available sound effects from the manifest
     this.app.get('/api/sfx', async (req, res) => {
       try {
-        const manifestPath = path.join(__dirname, '../../sfx-manifest.json');
-        const data = await fs.readFile(manifestPath, 'utf8');
-        const effects = JSON.parse(data);
-        res.json(effects);
+        // The manifest is now an in-memory constant.
+        res.json(SFX_MANIFEST);
       } catch (error) {
-        console.error('Error reading SFX manifest:', error);
+        console.error('Error serving SFX manifest:', error);
         res.status(500).json({ error: 'Could not retrieve sound effects.' });
       }
     });
