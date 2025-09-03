@@ -5,6 +5,7 @@ class MusicManager {
   constructor() {
     this.players = new Map();
     this.queues = new Map();
+    this.previousTracks = new Map(); // For the 'previous' command
     this.nowPlaying = new Map();
     this.connections = new Map();
     this.streamProcesses = new Map(); // Add a map to track yt-dlp processes
@@ -127,6 +128,20 @@ class MusicManager {
     return queue.length;
   }
 
+  // Add track to the front of the queue
+  addToQueueFront(guildId, track) {
+    if (!this.queues.has(guildId)) {
+      this.queues.set(guildId, []);
+    }
+    
+    const queue = this.queues.get(guildId);
+    queue.unshift(track); // Add to the beginning of the array
+    
+    console.log(`📝 Added "${track.title}" to the front of the queue in guild ${guildId}`);
+    
+    return queue.length;
+  }
+
   // Play a track immediately
   async playTrack(guildId, track) {
     const player = this.players.get(guildId);
@@ -213,6 +228,17 @@ class MusicManager {
     }
   }
 
+  // Remove a track from the queue by its index
+  removeTrack(guildId, index) {
+    const queue = this.queues.get(guildId);
+    if (queue && index >= 0 && index < queue.length) {
+      const removedTrack = queue.splice(index, 1);
+      console.log(`🗑️ Removed "${removedTrack[0].title}" from queue in guild ${guildId}`);
+      return removedTrack[0];
+    }
+    return null;
+  }
+
   // Play next track in queue
   async playNext(guildId) {
     const queue = this.queues.get(guildId);
@@ -229,6 +255,15 @@ class MusicManager {
       return;
     }
     
+    // Add the completed track to the previous tracks queue
+    const lastPlayed = this.nowPlaying.get(guildId);
+    if (lastPlayed) {
+      if (!this.previousTracks.has(guildId)) {
+        this.previousTracks.set(guildId, []);
+      }
+      this.previousTracks.get(guildId).unshift(lastPlayed);
+    }
+
     const nextTrack = queue.shift();
     this.nowPlaying.set(guildId, nextTrack);
     
@@ -239,6 +274,41 @@ class MusicManager {
       // Don't recursively call playNext to prevent infinite loops
       // Just log the error and let the user handle it
     }
+  }
+
+  // Play the previous track
+  async playPrevious(guildId) {
+    const previous = this.previousTracks.get(guildId);
+    if (!previous || previous.length === 0) {
+      return false; // No previous track to play
+    }
+
+    // Add the current track back to the front of the main queue
+    const currentTrack = this.nowPlaying.get(guildId);
+    if (currentTrack) {
+      this.queues.get(guildId).unshift(currentTrack);
+    }
+    
+    // Get the last track from the history
+    const previousTrack = previous.shift();
+    
+    // Add it to the front of the queue and skip the current track
+    this.addToQueueFront(guildId, previousTrack);
+    this.skipTrack(guildId);
+
+    return true;
+  }
+
+  // Move a track from a given index to the front of the queue
+  moveTrack(guildId, fromIndex, toIndex = 0) {
+    const queue = this.queues.get(guildId);
+    if (queue && fromIndex >= 0 && fromIndex < queue.length) {
+      const [track] = queue.splice(fromIndex, 1);
+      queue.splice(toIndex, 0, track);
+      console.log(`🎶 Moved "${track.title}" in queue for guild ${guildId}`);
+      return true;
+    }
+    return false;
   }
 
   // Get current queue

@@ -195,6 +195,87 @@ class WebInterface {
       }
     });
     
+    // Pause/Resume command
+    this.app.post('/api/music/:guildId/pause', async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        const result = this.musicManager.togglePause(guildId);
+        if (result === 'paused' || result === 'resumed') {
+          res.json({ success: true, status: result });
+        } else {
+          res.status(400).json({ error: 'Cannot pause/resume. Player is not in the correct state.' });
+        }
+      } catch (error) {
+        console.error('Web API pause error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Previous track command
+    this.app.post('/api/music/:guildId/previous', async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        const success = await this.musicManager.playPrevious(guildId);
+        if (success) {
+          res.json({ success: true, message: 'Playing previous track.' });
+        } else {
+          res.status(404).json({ error: 'No previous track to play.' });
+        }
+      } catch (error) {
+        console.error('Web API previous error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Remove a track from the queue
+    this.app.delete('/api/music/:guildId/queue/:trackIndex', async (req, res) => {
+      try {
+        const { guildId, trackIndex } = req.params;
+        const index = parseInt(trackIndex, 10);
+
+        if (isNaN(index) || index < 0) {
+          return res.status(400).json({ error: 'Invalid track index.' });
+        }
+        
+        const removedTrack = this.musicManager.removeTrack(guildId, index);
+
+        if (removedTrack) {
+          res.json({ success: true, message: `Removed "${removedTrack.title}" from the queue.` });
+        } else {
+          res.status(404).json({ error: 'Track not found in queue at that index.' });
+        }
+      } catch (error) {
+        console.error('Web API remove track error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Play a specific track from the queue
+    this.app.post('/api/music/:guildId/queue/play/:trackIndex', async (req, res) => {
+      try {
+        const { guildId, trackIndex } = req.params;
+        const index = parseInt(trackIndex, 10);
+
+        if (isNaN(index)) {
+          return res.status(400).json({ error: 'Invalid track index.' });
+        }
+
+        // Move the track to the front
+        const moveSuccess = this.musicManager.moveTrack(guildId, index, 0);
+        if (!moveSuccess) {
+          return res.status(404).json({ error: 'Track not found at that index.' });
+        }
+
+        // Skip the current song to play the new one
+        this.musicManager.skipTrack(guildId);
+
+        res.json({ success: true, message: 'Playing selected track.' });
+      } catch (error) {
+        console.error('Web API play from queue error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Get available guilds
     this.app.get('/api/guilds', (req, res) => {
       const guilds = this.client.guilds.cache.map(guild => ({
@@ -272,6 +353,8 @@ class WebInterface {
         const isConnected = this.musicManager.connections.has(guildId);
         const nowPlaying = this.musicManager.getNowPlaying(guildId);
         const queue = this.musicManager.getQueue(guildId);
+        const previousTracks = this.musicManager.previousTracks.get(guildId) || [];
+        const player = this.musicManager.players.get(guildId);
         
         let connectionInfo = null;
         if (isConnected) {
@@ -285,9 +368,11 @@ class WebInterface {
         
         res.json({
           connected: isConnected,
+          playerStatus: player?.state.status || 'idle',
           connectionInfo,
           nowPlaying,
           queue,
+          previousTracks,
           queueLength: queue.length
         });
         
