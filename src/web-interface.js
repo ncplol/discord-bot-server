@@ -7,11 +7,13 @@ const MusicManager = require('./utils/musicManager');
 const SFX_MANIFEST = [
   {
     "id": "SFX_TURN_OFF_PC",
-    "name": "PC Turn Off"
+    "name": "PC Turn Off",
+    "format": "wav"
   },
   {
     "id": "SFX_TURN_ON_PC",
-    "name": "PC Turn On"
+    "name": "PC Turn On",
+    "format": "wav"
   }
 ];
 
@@ -186,9 +188,16 @@ class WebInterface {
           return res.status(400).json({ error: 'Effect is required' });
         }
         
-        // Construct the full URL. We assume a .mp3 extension for simplicity.
-        // A more advanced system could store extensions in the manifest.
-        const sfxUrl = `${sfxBaseUrl.replace(/\/$/, '')}/${effect}.mp3`;
+        // Find the sound effect in the manifest to get its format
+        const sfxData = SFX_MANIFEST.find(s => s.id === effect);
+
+        if (!sfxData) {
+          return res.status(404).json({ error: 'Sound effect not found in manifest.' });
+        }
+        
+        // Use the format from the manifest, defaulting to mp3 if not specified.
+        const format = sfxData.format || 'mp3';
+        const sfxUrl = `${sfxBaseUrl.replace(/\/$/, '')}/${effect}.${format}`;
 
         // Find the guild
         const guild = this.client.guilds.cache.get(guildId);
@@ -208,7 +217,7 @@ class WebInterface {
         
         // Create sound effect track
         const sfxTrack = {
-          title: `SFX: ${effect.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
+          title: `SFX: ${sfxData.name}`,
           url: sfxUrl,
           author: 'Soundboard',
         };
