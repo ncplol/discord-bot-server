@@ -19,7 +19,9 @@ body {
 }
 
 .App {
-  text-align: center;
+  max-width: 1280px;
+  margin: 2rem auto;
+  padding: 0 1rem;
 }
 
 .App-header {
@@ -29,6 +31,7 @@ body {
   background-color: var(--header-bg);
   padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
+  border-radius: 8px; /* Add border-radius */
 }
 
 .header-right {
@@ -85,10 +88,20 @@ body {
   margin-bottom: 10px;
 }
 
+.status-message {
+  padding: 20px;
+  text-align: center;
+  font-size: 1.1em;
+  color: #aaa;
+}
+
 .header-title {
   display: flex;
   align-items: center;
   gap: 15px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .header-logo {
@@ -105,6 +118,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .guild-selector {
@@ -118,7 +133,7 @@ body {
 }
 
 .main-content {
-  padding: 20px;
+  padding: 20px 0;
 }
 
 .panels {
@@ -138,7 +153,24 @@ body {
   flex: 1;
 }
 
+@media (max-width: 860px) {
+  .App-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+}
+
 @media (max-width: 768px) {
+  .App {
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+  
+  .guild-selector-container {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
   .panels {
     flex-direction: column;
   }
