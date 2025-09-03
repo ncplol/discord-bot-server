@@ -168,7 +168,9 @@ class WebInterface {
         const sfxBaseUrl = process.env.SFX_BASE_URL;
 
         if (!sfxBaseUrl) {
-          return res.status(500).json({ error: 'SFX_BASE_URL is not configured on the server.' });
+          const errorMessage = 'SFX_BASE_URL is not configured on the server.';
+          console.error(`Web API sfx error: ${errorMessage}`);
+          return res.status(500).json({ error: errorMessage });
         }
         if (!effect) {
           return res.status(400).json({ error: 'Effect is required' });
