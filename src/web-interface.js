@@ -369,6 +369,7 @@ class WebInterface {
         res.json({
           connected: isConnected,
           playerStatus: player?.state.status || 'idle',
+          playbackDuration: player?.state.status === 'playing' ? player.state.playbackDuration : 0,
           connectionInfo,
           nowPlaying,
           queue,
