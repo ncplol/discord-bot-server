@@ -1,0 +1,12 @@
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- A gold, heart-shaped harp with a thick black outline, inspired by the cape icon -->
+    <path d="M 50 10 L 90 20 L 98 60 L 50 98 L 2 60 L 10 20 Z" 
+          fill="#DAA520" stroke="#000000" stroke-width="8" stroke-linejoin="round"/>
+    <!-- The inner part of the harp -->
+    <path d="M 50 25 L 78 35 L 82 60 L 50 86 L 18 60 L 22 35 Z" 
+          fill="#F0E68C" />
+    <!-- The strings of the harp -->
+    <rect x="36" y="33" width="5" height="45" fill="#DAA520"/>
+    <rect x="47.5" y="30" width="5" height="50" fill="#DAA520"/>
+    <rect x="59" y="33" width="5" height="45" fill="#DAA520"/>
+</svg>
