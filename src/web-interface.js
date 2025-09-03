@@ -1,6 +1,5 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs').promises; // Use promises-based fs
 const MusicManager = require('./utils/musicManager');
 
 class WebInterface {
@@ -15,10 +14,7 @@ class WebInterface {
   
   setupMiddleware() {
     this.app.use(express.json());
-    // Serve the React app
     this.app.use(express.static(path.join(__dirname, 'public')));
-    // Serve the SFX directory
-    this.app.use('/sfx', express.static(path.join(__dirname, '../../sfx')));
   }
   
   setupRoutes() {
@@ -150,22 +146,6 @@ class WebInterface {
       }
     });
     
-    // Get available sound effects
-    this.app.get('/api/sfx', async (req, res) => {
-      try {
-        const sfxPath = path.join(__dirname, '../../sfx');
-        const files = await fs.readdir(sfxPath);
-        // Filter for audio files and return their names without extension
-        const effects = files
-          .filter(file => /\.(mp3|ogg|wav)$/.test(file))
-          .map(file => path.parse(file).name);
-        res.json(effects);
-      } catch (error) {
-        console.error('Error reading SFX directory:', error);
-        res.status(500).json({ error: 'Could not retrieve sound effects.' });
-      }
-    });
-
     // Play sound effect command
     this.app.post('/api/music/:guildId/sfx', async (req, res) => {
       try {
@@ -175,18 +155,6 @@ class WebInterface {
         if (!effect) {
           return res.status(400).json({ error: 'Effect is required' });
         }
-        
-        // Construct the local file path
-        // IMPORTANT: We need to find a supported extension.
-        const sfxPath = path.join(__dirname, '../../sfx');
-        const files = await fs.readdir(sfxPath);
-        const fileName = files.find(file => path.parse(file).name === effect);
-
-        if (!fileName) {
-          return res.status(404).json({ error: 'Sound effect not found.' });
-        }
-        
-        const sfxFilePath = path.join(sfxPath, fileName);
         
         // Find the guild
         const guild = this.client.guilds.cache.get(guildId);
@@ -204,24 +172,23 @@ class WebInterface {
         // Join voice channel
         await this.musicManager.joinVoiceChannel(mockInteraction);
         
-        // Create sound effect track using the local file path
+        // Create sound effect track
         const sfxTrack = {
-          title: `SFX: ${effect.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
-          url: sfxFilePath, // Use the direct file path
-          duration: 5, // This is a placeholder, actual duration isn't critical for SFX
-          author: 'Soundboard',
+          title: `Sound Effect: ${effect.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
+          url: this.getSoundEffectUrl(effect),
+          duration: 5,
+          author: 'Sound Effect',
           thumbnail: null
         };
         
-        // Play the sound effect immediately, inserting it at the front of the queue
-        this.musicManager.addToQueueFront(guildId, sfxTrack);
-        if (!this.musicManager.getNowPlaying(guildId)) {
-          await this.musicManager.playNext(guildId);
-        } else {
-          this.musicManager.skipTrack(guildId);
-        }
+        // Play the sound effect immediately
+        await this.musicManager.playTrack(guildId, sfxTrack);
         
-        res.json({ success: true, track: sfxTrack, message: 'Sound effect playing' });
+        res.json({
+          success: true,
+          track: sfxTrack,
+          message: 'Sound effect playing'
+        });
         
       } catch (error) {
         console.error('Web API sfx error:', error);
@@ -493,6 +460,21 @@ class WebInterface {
         res.status(500).json({ error: error.message });
       }
     });
+  }
+  
+  getSoundEffectUrl(effect) {
+    const sfxUrls = {
+      'party_horn': 'https://example.com/sounds/party_horn.mp3',
+      'applause': 'https://example.com/sounds/applause.mp3',
+      'bell': 'https://example.com/sounds/bell.mp3',
+      'alert': 'https://example.com/sounds/alert.mp3',
+      'drum_roll': 'https://example.com/sounds/drum_roll.mp3',
+      'fanfare': 'https://example.com/sounds/fanfare.mp3',
+      'notification': 'https://example.com/sounds/notification.mp3',
+      'celebration': 'https://example.com/sounds/celebration.mp3'
+    };
+    
+    return sfxUrls[effect] || sfxUrls['bell'];
   }
   
   // Helper method to check if a string is a YouTube URL
