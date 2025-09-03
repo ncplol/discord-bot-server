@@ -73,6 +73,30 @@ class WebInterface {
     res.status(401).json({ error: 'Not authenticated' });
   }
 
+  async ensureUserHasRole(req, res, next) {
+    const controllerRoleName = process.env.CONTROLLER_ROLE_NAME;
+    if (!controllerRoleName) {
+      return next(); // If no role is set, allow the action
+    }
+
+    try {
+      const guildId = req.params.guildId;
+      const userId = req.user.id;
+
+      const guild = await this.client.guilds.fetch(guildId);
+      const member = await guild.members.fetch(userId);
+
+      if (member.roles.cache.some(role => role.name === controllerRoleName)) {
+        return next();
+      } else {
+        res.status(403).json({ error: 'You do not have the required role to perform this action.' });
+      }
+    } catch (error) {
+      console.error('Error checking user role:', error);
+      res.status(500).json({ error: 'Could not verify user permissions.' });
+    }
+  }
+
   setupRoutes() {
     // Auth routes
     this.app.get('/api/auth/discord', passport.authenticate('discord'));
@@ -128,7 +152,7 @@ class WebInterface {
     });
     
     // Play music command (now with modes)
-    this.app.post('/api/music/:guildId/play', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/play', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const { query, mode = 'queue' } = req.body; // Default to 'queue'
@@ -204,7 +228,7 @@ class WebInterface {
     });
     
     // Stop music command
-    this.app.post('/api/music/:guildId/stop', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/stop', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -222,7 +246,7 @@ class WebInterface {
     });
     
     // Skip track command
-    this.app.post('/api/music/:guildId/skip', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/skip', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -284,7 +308,7 @@ class WebInterface {
     });
 
     // Play sound effect command
-    this.app.post('/api/music/:guildId/sfx', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/sfx', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const { effect } = req.body;
@@ -352,7 +376,7 @@ class WebInterface {
     });
     
     // Pause/Resume command
-    this.app.post('/api/music/:guildId/pause', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/pause', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const result = this.musicManager.togglePause(guildId);
@@ -368,7 +392,7 @@ class WebInterface {
     });
 
     // Previous track command
-    this.app.post('/api/music/:guildId/previous', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/previous', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const success = await this.musicManager.playPrevious(guildId);
@@ -384,7 +408,7 @@ class WebInterface {
     });
 
     // Remove a track from the queue
-    this.app.delete('/api/music/:guildId/queue/:trackIndex', this.ensureAuthenticated, async (req, res) => {
+    this.app.delete('/api/music/:guildId/queue/:trackIndex', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId, trackIndex } = req.params;
         const index = parseInt(trackIndex, 10);
@@ -407,7 +431,7 @@ class WebInterface {
     });
 
     // Clear the entire queue
-    this.app.delete('/api/music/:guildId/queue', this.ensureAuthenticated, async (req, res) => {
+    this.app.delete('/api/music/:guildId/queue', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const success = this.musicManager.clearQueue(guildId);
@@ -424,7 +448,7 @@ class WebInterface {
     });
 
     // Clear the history
-    this.app.delete('/api/music/:guildId/history', this.ensureAuthenticated, async (req, res) => {
+    this.app.delete('/api/music/:guildId/history', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const success = this.musicManager.clearHistory(guildId);
@@ -440,7 +464,7 @@ class WebInterface {
     });
 
     // Play a specific track from the queue
-    this.app.post('/api/music/:guildId/queue/play/:trackIndex', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/queue/play/:trackIndex', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId, trackIndex } = req.params;
         const index = parseInt(trackIndex, 10);
@@ -486,7 +510,7 @@ class WebInterface {
     });
     
     // Join voice channel command
-    this.app.post('/api/music/:guildId/join', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/join', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -525,7 +549,7 @@ class WebInterface {
     });
     
     // Leave voice channel command
-    this.app.post('/api/music/:guildId/leave', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/leave', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         
@@ -543,10 +567,26 @@ class WebInterface {
     });
     
     // Get voice status
-    this.app.get('/api/music/:guildId/status', this.ensureAuthenticated, (req, res) => {
+    this.app.get('/api/music/:guildId/status', this.ensureAuthenticated, async (req, res) => {
       try {
         const { guildId } = req.params;
+        const userId = req.user.id;
+        const controllerRoleName = process.env.CONTROLLER_ROLE_NAME;
         
+        let canControl = false;
+        if (controllerRoleName) {
+          try {
+            const guild = await this.client.guilds.fetch(guildId);
+            const member = await guild.members.fetch(userId);
+            canControl = member.roles.cache.some(role => role.name === controllerRoleName);
+          } catch (error) {
+            console.error('Could not check user role for status:', error);
+          }
+        } else {
+          // If no role is set, everyone can control
+          canControl = true;
+        }
+
         const isConnected = this.musicManager.connections.has(guildId);
         const nowPlaying = this.musicManager.getNowPlaying(guildId);
         const queue = this.musicManager.getQueue(guildId);
@@ -564,6 +604,7 @@ class WebInterface {
         }
         
         res.json({
+          canControl,
           connected: isConnected,
           playerStatus: player?.state.status || 'idle',
           playbackDuration: player?.state.status === 'playing' ? player.state.playbackDuration : 0,
@@ -583,7 +624,7 @@ class WebInterface {
     });
 
     // Set loop mode command
-    this.app.post('/api/music/:guildId/loop', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/loop', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const { mode } = req.body;
@@ -602,7 +643,7 @@ class WebInterface {
     });
 
     // Set volume command
-    this.app.post('/api/music/:guildId/volume', this.ensureAuthenticated, async (req, res) => {
+    this.app.post('/api/music/:guildId/volume', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
       try {
         const { guildId } = req.params;
         const { level } = req.body;
