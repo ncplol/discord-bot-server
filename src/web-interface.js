@@ -302,13 +302,8 @@ class WebInterface {
           author: 'Soundboard',
         };
         
-        // Playskip the sound effect
-        this.musicManager.addToQueueFront(guildId, sfxTrack);
-        if (this.musicManager.getNowPlaying(guildId)) {
-          this.musicManager.skipTrack(guildId);
-        } else {
-          await this.musicManager.playNext(guildId);
-        }
+        // Plays the SFX, interrupting and resuming if a track is already playing
+        await this.musicManager.playSfx(guildId, sfxTrack);
         
         res.json({ success: true, track: sfxTrack });
         

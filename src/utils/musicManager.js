@@ -10,6 +10,7 @@ class MusicManager {
     this.nowPlaying = new Map();
     this.connections = new Map();
     this.streamProcesses = new Map(); // Add a map to track yt-dlp processes
+    this.interruptedTracks = new Map(); // To store tracks paused by an SFX
   }
 
   // Join a voice channel
@@ -185,11 +186,17 @@ class MusicManager {
 
         this.streamProcesses.delete(guildId); // Clean up process reference
         const currentTrack = this.nowPlaying.get(guildId);
-        const loopMode = this.loopModes.get(guildId) || 'none';
+        const interruptedTrack = this.interruptedTracks.get(guildId);
 
-        if (currentTrack) {
+        // If the track that just ended was an SFX and there's an interrupted track,
+        // put the interrupted track back at the front of the queue to be resumed.
+        if (currentTrack && currentTrack.isSfx && interruptedTrack) {
+          this.addToQueueFront(guildId, interruptedTrack);
+          this.interruptedTracks.delete(guildId);
+        } else if (currentTrack) {
           console.log(`⏹️ Finished playing: ${currentTrack.title}`);
-          // Handle looping
+          const loopMode = this.loopModes.get(guildId) || 'none';
+          // Handle looping, but ignore for SFX
           if (loopMode === 'track') {
             this.queues.get(guildId).unshift(currentTrack); // Re-add to front
           } else if (loopMode === 'queue') {
@@ -572,6 +579,34 @@ class MusicManager {
         reject(new Error(`Failed to spawn yt-dlp for playlist: ${error.message}`));
       });
     });
+  }
+
+  // Play an SFX, interrupting the current track if necessary
+  async playSfx(guildId, sfxTrack) {
+    const player = this.players.get(guildId);
+    if (!player) {
+      // Should not happen if called from web-interface as it joins first
+      throw new Error('Player not available for SFX.');
+    }
+
+    const currentlyPlaying = this.getNowPlaying(guildId);
+    const isPlaying = player.state.status === AudioPlayerStatus.Playing;
+
+    // If a song is actively playing, mark it as interrupted.
+    if (currentlyPlaying && isPlaying) {
+      this.interruptedTracks.set(guildId, currentlyPlaying);
+    }
+
+    const trackWithFlag = { ...sfxTrack, isSfx: true };
+    this.addToQueueFront(guildId, trackWithFlag);
+
+    if (isPlaying) {
+      // Skip the current song to immediately play the SFX
+      this.skipTrack(guildId);
+    } else {
+      // If nothing is playing, just start the queue
+      await this.playNext(guildId);
+    }
   }
 }
 
