@@ -123,6 +123,11 @@ class WebInterface {
       });
     });
 
+    // Invite URL endpoint
+    this.app.get('/api/invite', (req, res) => {
+      res.json({ inviteUrl: process.env.OAUTH2_INVITE_URL || null });
+    });
+
     // API endpoints for bot control
     
     // Get bot status

@@ -9,9 +9,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 function App() {
   const [guilds, setGuilds] = useState([]);
   const [selectedGuild, setSelectedGuild] = useState(null);
-  const [status, setStatus] = useState({ connected: false, queue: [], previousTracks: [] });
+  const [status, setStatus] = useState({ connected: false, queue: [], previousTracks: [], canControl: false });
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const [inviteUrl, setInviteUrl] = useState(null);
 
   const apiCall = async (apiFunction) => {
     setIsLoading(true);
@@ -43,14 +44,21 @@ function App() {
     } catch (error) {
       console.error('Error fetching status:', error);
       // On error, reset to a disconnected state
-      setStatus({ connected: false, queue: [], previousTracks: [] });
+      setStatus({ connected: false, queue: [], previousTracks: [], canControl: false });
     }
   };
   
   // Effect to fetch user and guilds on initial load
   useEffect(() => {
-    const fetchUserAndGuilds = async () => {
+    const fetchInitialData = async () => {
       try {
+        // Fetch invite URL
+        const inviteResponse = await fetch(`${API_BASE_URL}/api/invite`);
+        if (inviteResponse.ok) {
+          const inviteData = await inviteResponse.json();
+          setInviteUrl(inviteData.inviteUrl);
+        }
+
         // Fetch user
         const userResponse = await fetch(`${API_BASE_URL}/api/auth/user`);
         if (userResponse.ok) {
@@ -81,7 +89,7 @@ function App() {
       }
     };
 
-    fetchUserAndGuilds();
+    fetchInitialData();
   }, []);
 
   // Effect to poll for status updates for the selected guild
@@ -188,8 +196,17 @@ function App() {
             </main>
           ) : (
             <div className="no-guilds-prompt">
-              <h2>It looks like you don't share any servers with this bot.</h2>
-              <p>Please make sure you're logged in with the correct Discord account and that the bot has been added to a server you are in.</p>
+              <h2>You don't share any servers with this bot.</h2>
+              {inviteUrl ? (
+                <>
+                  <p>Click the button below to invite the bot to one of your servers!</p>
+                  <a href={inviteUrl} className="btn-invite" target="_blank" rel="noopener noreferrer">
+                    Invite Bot to Server
+                  </a>
+                </>
+              ) : (
+                <p>Please make sure the bot has been added to a server you are in.</p>
+              )}
             </div>
           )}
         </>
