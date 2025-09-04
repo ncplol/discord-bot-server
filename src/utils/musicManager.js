@@ -11,6 +11,8 @@ class MusicManager {
     this.connections = new Map();
     this.streamProcesses = new Map(); // Add a map to track yt-dlp processes
     this.interruptedTracks = new Map(); // To store tracks paused by an SFX
+    this.musicVolumes = new Map(); // To store music volume settings per guild
+    this.sfxVolumes = new Map(); // To store SFX volume settings per guild
   }
 
   // Join a voice channel
@@ -175,6 +177,12 @@ class MusicManager {
         inlineVolume: true,
       });
       
+      // Get the correct volume for the track type
+      const volume = track.isSfx 
+        ? this.getSfxVolume(guildId) 
+        : this.getVolume(guildId);
+      resource.volume.setVolume(volume / 100);
+
       console.log('🔧 Audio resource created from direct stream.');
 
       // --- Unified End-of-Stream Logic ---
@@ -346,23 +354,38 @@ class MusicManager {
     return false;
   }
 
-  // Get the current volume
+  // Get the current music volume
   getVolume(guildId) {
-    const player = this.players.get(guildId);
-    if (player && player.state.resource && player.state.resource.volume) {
-      return Math.round(player.state.resource.volume.volume * 100);
-    }
-    return 100; // Default volume
+    return this.musicVolumes.get(guildId) || 100; // Default to 100
   }
 
-  // Set the playback volume
+  // Set the music playback volume
   setVolume(guildId, level) {
+    this.musicVolumes.set(guildId, level);
     const player = this.players.get(guildId);
-    if (player && player.state.resource && player.state.resource.volume) {
+    const nowPlaying = this.getNowPlaying(guildId);
+    if (player && player.state.resource && player.state.resource.volume && nowPlaying && !nowPlaying.isSfx) {
       player.state.resource.volume.setVolume(level / 100);
       return true;
     }
-    return false;
+    return false; // Returns false if no music is playing, but volume is still saved
+  }
+
+  // Get the current SFX volume
+  getSfxVolume(guildId) {
+    return this.sfxVolumes.get(guildId) || 100; // Default to 100
+  }
+
+  // Set the SFX playback volume
+  setSfxVolume(guildId, level) {
+    this.sfxVolumes.set(guildId, level);
+    const player = this.players.get(guildId);
+    const nowPlaying = this.getNowPlaying(guildId);
+    if (player && player.state.resource && player.state.resource.volume && nowPlaying && nowPlaying.isSfx) {
+      player.state.resource.volume.setVolume(level / 100);
+      return true;
+    }
+    return false; // Returns false if no SFX is playing, but volume is still saved
   }
 
   // Move a track from a given index to the front of the queue

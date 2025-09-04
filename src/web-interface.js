@@ -615,6 +615,7 @@ class WebInterface {
           playbackDuration: player?.state.status === 'playing' ? player.state.playbackDuration : 0,
           loopMode: this.musicManager.loopModes.get(guildId) || 'none',
           volume: this.musicManager.getVolume(guildId),
+          sfxVolume: this.musicManager.getSfxVolume(guildId),
           connectionInfo,
           nowPlaying,
           queue,
@@ -666,6 +667,25 @@ class WebInterface {
         }
       } catch (error) {
         console.error('Web API volume error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Set SFX volume command
+    this.app.post('/api/music/:guildId/sfx-volume', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        const { level } = req.body;
+
+        if (level === undefined || level < 0 || level > 200) {
+          return res.status(400).json({ error: 'Invalid volume level specified.' });
+        }
+
+        this.musicManager.setSfxVolume(guildId, level);
+        res.json({ success: true, message: `SFX volume set to ${level}%` });
+
+      } catch (error) {
+        console.error('Web API SFX volume error:', error);
         res.status(500).json({ error: error.message });
       }
     });

@@ -178,6 +178,7 @@ function App() {
                       onApiCall={apiCall}
                       isLoading={isLoading}
                       canControl={status.canControl}
+                      sfxVolume={status.sfxVolume}
                     />
                   </div>
                   <div className="panel queue-panel">
