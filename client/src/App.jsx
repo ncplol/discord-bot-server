@@ -13,6 +13,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [inviteUrl, setInviteUrl] = useState(null);
+  const [controllerRoleName, setControllerRoleName] = useState(null);
 
   const apiCall = async (apiFunction) => {
     setIsLoading(true);
@@ -52,11 +53,12 @@ function App() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // Fetch invite URL
+        // Fetch invite URL and controller role name
         const inviteResponse = await fetch(`${API_BASE_URL}/api/invite`);
         if (inviteResponse.ok) {
           const inviteData = await inviteResponse.json();
           setInviteUrl(inviteData.inviteUrl);
+          setControllerRoleName(inviteData.controllerRoleName);
         }
 
         // Fetch user
@@ -204,6 +206,15 @@ function App() {
                   <a href={inviteUrl} className="btn-invite" target="_blank" rel="noopener noreferrer">
                     Invite Bot to Server
                   </a>
+                  {controllerRoleName && (
+                    <div className="setup-instructions">
+                      <h4>Setup Instructions:</h4>
+                      <p>
+                        After inviting the bot, create a role named exactly <strong>"{controllerRoleName}"</strong> in your server settings.
+                        Assign this role to any members you want to give control over the bot.
+                      </p>
+                    </div>
+                  )}
                 </>
               ) : (
                 <p>Please make sure the bot has been added to a server you are in.</p>

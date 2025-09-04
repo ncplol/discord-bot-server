@@ -108,6 +108,23 @@ body {
   margin-bottom: 1rem;
 }
 
+.setup-instructions {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--secondary-bg);
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: left;
+}
+
+.setup-instructions h4 {
+  margin-top: 0;
+  color: var(--accent-color);
+}
+
 .status-message {
   padding: 20px;
   text-align: center;
