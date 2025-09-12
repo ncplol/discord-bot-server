@@ -34,6 +34,22 @@ body {
   border-radius: 8px; /* Add border-radius */
 }
 
+.btn-header-action {
+  background-color: var(--secondary-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 8px 15px;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-right: 10px;
+}
+
+.btn-header-action:hover {
+  background-color: #4f545c;
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -106,6 +122,15 @@ body {
 
 .no-guilds-prompt p {
   margin-bottom: 1rem;
+}
+
+.invite-modal-content {
+  text-align: center;
+}
+
+.invite-modal-content h2 {
+  margin-top: 0;
+  color: var(--accent-color);
 }
 
 .setup-instructions {

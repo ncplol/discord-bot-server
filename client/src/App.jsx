@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Soundboard from './components/Soundboard';
 import Queue from './components/Queue';
 import ConnectionManager from './components/ConnectionManager';
+import Modal from './components/Modal';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -14,6 +15,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [inviteUrl, setInviteUrl] = useState(null);
   const [controllerRoleName, setControllerRoleName] = useState(null);
+  const [isInviteModalOpen, setInviteModalOpen] = useState(false);
 
   const apiCall = async (apiFunction) => {
     setIsLoading(true);
@@ -123,6 +125,9 @@ function App() {
           <h1>Bard Bot Control Panel</h1>
         </div>
         <div className="header-right">
+          <button onClick={() => setInviteModalOpen(true)} className="btn-header-action">
+            Invite & Setup
+          </button>
           {user ? (
             <div className="user-info">
               <img 
@@ -223,6 +228,31 @@ function App() {
           )}
         </>
       )}
+
+      <Modal isOpen={isInviteModalOpen} onClose={() => setInviteModalOpen(false)}>
+        <div className="invite-modal-content">
+          <h2>Invite & Setup</h2>
+          {inviteUrl ? (
+            <>
+              <p>Click the button below to invite the bot to one of your servers!</p>
+              <a href={inviteUrl} className="btn-invite" target="_blank" rel="noopener noreferrer">
+                Invite Bot to Server
+              </a>
+              {controllerRoleName && (
+                <div className="setup-instructions">
+                  <h4>Setup Instructions:</h4>
+                  <p>
+                    After inviting the bot, create a role named exactly <strong>"{controllerRoleName}"</strong> in your server settings.
+                    Assign this role to any members you want to give control over the bot.
+                  </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <p>The bot invite link has not been configured by the administrator.</p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

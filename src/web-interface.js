@@ -126,7 +126,7 @@ class WebInterface {
     // Invite URL endpoint
     this.app.get('/api/invite', (req, res) => {
       res.json({
-        inviteUrl: process.env.INVITE_URL || null,
+        inviteUrl: process.env.OAUTH2_INVITE_URL || null,
         controllerRoleName: process.env.CONTROLLER_ROLE_NAME || null,
       });
     });

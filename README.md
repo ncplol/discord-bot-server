@@ -111,7 +111,7 @@ You should now be able to access the web interface at the URL provided by the Vi
 | `SESSION_SECRET`          | A long, random string used to secure user sessions.                                                     | Yes      |
 | `FRONTEND_URL`            | The base URL of your frontend application (e.g., `http://localhost:5173`).                              | No       |
 | `CONTROLLER_ROLE_NAME`    | The exact name of the server role required to control the bot.                                          | No       |
-| `INVITE_URL`              | The bot's OAuth2 invite link to show to users who don't share a server with it.                           | No       |
+| `OAUTH2_INVITE_URL`              | The bot's OAuth2 invite link to show to users who don't share a server with it.                           | No       |
 
 ## Contributing
 
