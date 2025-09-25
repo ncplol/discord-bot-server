@@ -11,9 +11,6 @@ module.exports = {
     // Set bot status
     client.user.setActivity('with Discord.js', { type: 'PLAYING' });
     
-    // Start web interface
-    if (client.webInterface) {
-      client.webInterface.start(3001);
-    }
+    // Web interface is started on initialization in index.js
   },
 };

@@ -25,6 +25,8 @@ client.musicManager = new MusicManager();
 
 // Initialize web interface
 client.webInterface = new WebInterface(client);
+const WEB_PORT = parseInt(process.env.WEB_PORT || '3001', 10);
+client.webInterface.start(WEB_PORT);
 
 // Load commands from the commands directory
 const commandsPath = path.join(__dirname, 'commands');

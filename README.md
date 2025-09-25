@@ -95,6 +95,8 @@ npm run dev
 
 You should now be able to access the web interface at the URL provided by the Vite server (usually `http://localhost:5173`).
 
+In production, the server serves the built client from `src/public`. A SPA fallback is enabled so non-API routes resolve to the React app.
+
 ## Available Commands
 ## Environment Variables
 
@@ -103,8 +105,8 @@ You should now be able to access the web interface at the URL provided by the Vi
 | `DISCORD_TOKEN`           | Your Discord bot token.                                                                                 | Yes      |
 | `CLIENT_ID`               | Your Discord application's Client ID.                                                                   | Yes      |
 | `GUILD_ID`                | The ID of your test server for instant command deployment.                                              | No       |
-| `PORT`                    | The port the backend server will run on. Defaults to `3001`.                                            | No       |
-| `SFX_BASE_URL`            | The base URL for your S3 bucket where sound effects are stored.                                         | No       |
+| `PORT`                    | Health/status HTTP port (Node server in `src/index.js`). Defaults to `3000`.                            | No       |
+| `WEB_PORT`                | Web interface port (Express app in `src/web-interface.js`). Defaults to `3001`.                         | No       |
 | `DISCORD_CLIENT_ID`       | The Client ID from your Discord App's OAuth2 settings. (Often same as `CLIENT_ID`).                     | Yes      |
 | `DISCORD_CLIENT_SECRET`   | The Client Secret from your Discord App's OAuth2 settings.                                              | Yes      |
 | `DISCORD_CALLBACK_URL`    | The full URL to your authentication callback route (e.g., `http://localhost:3001/api/auth/discord/callback`). | Yes      |

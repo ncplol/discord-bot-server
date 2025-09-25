@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Soundboard from './components/Soundboard';
 import Queue from './components/Queue';
 import ConnectionManager from './components/ConnectionManager';
 import Modal from './components/Modal';
@@ -179,15 +178,6 @@ function App() {
 
               {status.connected ? (
                 <div className="panels">
-                  <div className="panel soundboard-panel">
-                    <Soundboard 
-                      guildId={selectedGuild.id} 
-                      onApiCall={apiCall}
-                      isLoading={isLoading}
-                      canControl={status.canControl}
-                      sfxVolume={status.sfxVolume}
-                    />
-                  </div>
                   <div className="panel queue-panel">
                     <Queue 
                       guildId={selectedGuild.id} 

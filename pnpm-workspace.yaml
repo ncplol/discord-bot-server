@@ -1,2 +1,6 @@
+packages:
+  - client
+
 onlyBuiltDependencies:
   - '@discordjs/opus'
+  - esbuild

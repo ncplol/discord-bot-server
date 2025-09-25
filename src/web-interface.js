@@ -1,33 +1,18 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs').promises;
 const MusicManager = require('./utils/musicManager');
 const session = require('express-session');
 const passport = require('passport');
 const { Strategy: DiscordStrategy } = require('passport-discord-auth');
 const cors = require('cors');
 
-// SFX manifest is now embedded in the code to avoid filesystem issues in containers.
-const SFX_MANIFEST = [
-  {
-    "id": "SFX_TURN_OFF_PC",
-    "name": "PC Turn Off",
-    "format": "wav"
-  },
-  {
-    "id": "SFX_TURN_ON_PC",
-    "name": "PC Turn On",
-    "format": "wav"
-  }
-];
+//
 
 class WebInterface {
   constructor(client) {
     this.client = client;
     this.app = express();
     this.musicManager = client.musicManager;
-    this.sfxManifestCache = null; // Cache for the SFX manifest
-    this.sfxCacheTimestamp = null; // Timestamp for the cache
     
     this.setupAuth();
     this.setupMiddleware();
@@ -275,113 +260,7 @@ class WebInterface {
       }
     });
     
-    // Get available sound effects from the manifest
-    this.app.get('/api/sfx', this.ensureAuthenticated, async (req, res) => {
-      const cacheDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-      // Check if cache is valid
-      if (this.sfxManifestCache && (Date.now() - this.sfxCacheTimestamp < cacheDuration)) {
-        return res.json(this.sfxManifestCache);
-      }
-
-      try {
-        const sfxBaseUrl = process.env.SFX_BASE_URL;
-        if (!sfxBaseUrl) {
-          throw new Error('SFX_BASE_URL is not configured.');
-        }
-
-        const manifestUrl = `${sfxBaseUrl.replace(/\/$/, '')}/manifest.json`;
-        const response = await fetch(manifestUrl);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch manifest: ${response.statusText}`);
-        }
-
-        const manifest = await response.json();
-
-        // Update cache
-        this.sfxManifestCache = manifest;
-        this.sfxCacheTimestamp = Date.now();
-
-        res.json(manifest);
-      } catch (error) {
-        console.error('Error fetching or serving SFX manifest:', error);
-        // Serve the old cache if available, otherwise send an error
-        if (this.sfxManifestCache) {
-          res.json(this.sfxManifestCache);
-        } else {
-          res.status(500).json({ error: 'Could not retrieve sound effects.' });
-        }
-      }
-    });
-
-    // Play sound effect command
-    this.app.post('/api/music/:guildId/sfx', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
-      try {
-        const { guildId } = req.params;
-        const { effect } = req.body;
-        const sfxBaseUrl = process.env.SFX_BASE_URL;
-
-        if (!sfxBaseUrl) {
-          const errorMessage = 'SFX_BASE_URL is not configured on the server.';
-          console.error(`Web API sfx error: ${errorMessage}`);
-          return res.status(500).json({ error: errorMessage });
-        }
-        if (!effect) {
-          return res.status(400).json({ error: 'Effect is required' });
-        }
-        
-        // Ensure the manifest is loaded before proceeding
-        if (!this.sfxManifestCache) {
-          // You might want to trigger a fetch here or just rely on the client having fetched it.
-          // For simplicity, we'll assume the client has already triggered a fetch via the /api/sfx endpoint.
-          return res.status(503).json({ error: 'SFX manifest not yet loaded. Please try again in a moment.' });
-        }
-
-        // Find the sound effect in the manifest to get its format
-        const sfxData = this.sfxManifestCache.find(s => s.id === effect);
-
-        if (!sfxData) {
-          return res.status(404).json({ error: 'Sound effect not found in manifest.' });
-        }
-        
-        // Use the format from the manifest, defaulting to mp3 if not specified.
-        const format = sfxData.format || 'mp3';
-        const sfxUrl = `${sfxBaseUrl.replace(/\/$/, '')}/${effect}.${format}`;
-
-        // Find the guild
-        const guild = this.client.guilds.cache.get(guildId);
-        if (!guild) {
-          return res.status(404).json({ error: 'Guild not found' });
-        }
-        
-        // Create a mock interaction for the music manager
-        const mockInteraction = {
-          guildId,
-          guild,
-          member: { voice: { channel: guild.channels.cache.find(c => c.type === 2) } }
-        };
-        
-        // Join voice channel
-        await this.musicManager.joinVoiceChannel(mockInteraction);
-        
-        // Create sound effect track
-        const sfxTrack = {
-          title: `SFX: ${sfxData.name}`,
-          url: sfxUrl,
-          author: 'Soundboard',
-        };
-        
-        // Plays the SFX, interrupting and resuming if a track is already playing
-        await this.musicManager.playSfx(guildId, sfxTrack);
-        
-        res.json({ success: true, track: sfxTrack });
-        
-      } catch (error) {
-        console.error('Web API sfx error:', error);
-        res.status(500).json({ error: error.message });
-      }
-    });
+    //
     
     // Pause/Resume command
     this.app.post('/api/music/:guildId/pause', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
@@ -618,7 +497,6 @@ class WebInterface {
           playbackDuration: player?.state.status === 'playing' ? player.state.playbackDuration : 0,
           loopMode: this.musicManager.loopModes.get(guildId) || 'none',
           volume: this.musicManager.getVolume(guildId),
-          sfxVolume: this.musicManager.getSfxVolume(guildId),
           connectionInfo,
           nowPlaying,
           queue,
@@ -674,23 +552,13 @@ class WebInterface {
       }
     });
 
-    // Set SFX volume command
-    this.app.post('/api/music/:guildId/sfx-volume', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
-      try {
-        const { guildId } = req.params;
-        const { level } = req.body;
+    //
 
-        if (level === undefined || level < 0 || level > 200) {
-          return res.status(400).json({ error: 'Invalid volume level specified.' });
-        }
-
-        this.musicManager.setSfxVolume(guildId, level);
-        res.json({ success: true, message: `SFX volume set to ${level}%` });
-
-      } catch (error) {
-        console.error('Web API SFX volume error:', error);
-        res.status(500).json({ error: error.message });
-      }
+    // SPA fallback: serve index.html for non-API GET requests (Express 5-safe)
+    this.app.use((req, res, next) => {
+      if (req.method !== 'GET') return next();
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });
   }
   
