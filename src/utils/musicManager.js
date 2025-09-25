@@ -161,10 +161,11 @@ class MusicManager {
       // Spawn yt-dlp to get a raw audio stream, piping stdout
       const ytdlp = spawn('yt-dlp', [
         track.url,
-        '--format', 'bestaudio/best',
         '-o', '-', // Pipe output to stdout
+        '--downloader', 'ffmpeg',
+        '--format', 'bv*+ba/b',
         '--no-playlist',
-        '--quiet', // Suppress verbose logs
+        '--extract-audio',
       ]);
 
       // Store the process so we can kill it later
