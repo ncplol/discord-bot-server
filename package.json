@@ -26,7 +26,7 @@
     "express-session": "1.18.2",
     "libsodium-wrappers": "0.7.15",
     "passport": "0.7.0",
-    "passport-discord": "0.1.4"
+    "passport-discord-auth": "^1.2.0"
   },
   "devDependencies": {
     "nodemon": "3.1.10"

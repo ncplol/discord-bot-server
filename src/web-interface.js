@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const MusicManager = require('./utils/musicManager');
 const session = require('express-session');
 const passport = require('passport');
-const DiscordStrategy = require('passport-discord').Strategy;
+const { Strategy: DiscordStrategy } = require('passport-discord-auth');
 const cors = require('cors');
 
 // SFX manifest is now embedded in the code to avoid filesystem issues in containers.
@@ -39,9 +39,9 @@ class WebInterface {
     passport.deserializeUser((obj, done) => done(null, obj));
 
     passport.use(new DiscordStrategy({
-      clientID: process.env.DISCORD_CLIENT_ID,
+      clientId: process.env.DISCORD_CLIENT_ID,
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
-      callbackURL: process.env.DISCORD_CALLBACK_URL,
+      callbackUrl: process.env.DISCORD_CALLBACK_URL,
       scope: ['identify', 'guilds']
     }, (accessToken, refreshToken, profile, done) => {
       process.nextTick(() => done(null, profile));

@@ -113,6 +113,10 @@ You should now be able to access the web interface at the URL provided by the Vi
 | `CONTROLLER_ROLE_NAME`    | The exact name of the server role required to control the bot.                                          | No       |
 | `OAUTH2_INVITE_URL`              | The bot's OAuth2 invite link to show to users who don't share a server with it.                           | No       |
 
+## Authentication
+
+This project uses Passport with the maintained `passport-discord-auth` strategy for Discord OAuth 2.0. Ensure your Discord application's Redirect URI matches `DISCORD_CALLBACK_URL`. See the strategy docs for details: https://github.com/displexic/passport-discord-auth
+
 ## Contributing
 
 1. Fork the repository
