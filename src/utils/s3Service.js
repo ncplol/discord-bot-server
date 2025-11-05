@@ -112,8 +112,19 @@ class S3Service {
         throw new Error('No body returned from S3');
       }
 
-      // Convert the stream to a readable stream for music-metadata
-      const stream = Readable.fromWeb(response.Body);
+      // Handle different stream types from AWS SDK v3
+      // In Node.js environments, response.Body is typically an IncomingMessage (Node.js stream)
+      // In browser/Web environments, it might be a Web Streams ReadableStream
+      let stream;
+      
+      // Check if it's already a Node.js stream (has pipe method or is Readable)
+      if (response.Body.pipe || response.Body instanceof Readable) {
+        // It's already a Node.js stream (IncomingMessage or other Readable)
+        stream = response.Body;
+      } else {
+        // It's likely a Web Streams ReadableStream, convert it
+        stream = Readable.fromWeb(response.Body);
+      }
 
       // Parse metadata
       const metadata = await parseStream(stream);
