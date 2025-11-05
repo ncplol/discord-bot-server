@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './PlayerControls.css';
 
-function PlayerControls({ guildId, playerStatus, loopMode, volume, isLoading, onApiCall, canControl }) {
+function PlayerControls({ guildId, playerStatus, loopMode, volume, isLoading, onApiCall, canControl, activeTab = 'youtube' }) {
   const [query, setQuery] = useState('');
   const [playMode, setPlayMode] = useState('queue'); // 'queue', 'next', 'now'
   const [currentVolume, setCurrentVolume] = useState(volume);
@@ -74,30 +74,34 @@ function PlayerControls({ guildId, playerStatus, loopMode, volume, isLoading, on
         <button className={loopMode === 'queue' ? 'active' : ''} onClick={() => handleSetLoopMode('queue')} disabled={isLoading || !canControl}>🔁 Queue</button>
         <button className={loopMode === 'track' ? 'active' : ''} onClick={() => handleSetLoopMode('track')} disabled={isLoading || !canControl}>🔂 Track</button>
       </div>
-      <form onSubmit={handleAddSong} className="add-song-form">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Enter YouTube URL or search..."
-          disabled={isLoading || !canControl}
-        />
-        <button type="submit" disabled={isLoading || !canControl}>Add Song</button>
-      </form>
-      <div className="play-mode-selector">
-        <label>
-          <input type="radio" value="queue" checked={playMode === 'queue'} onChange={() => setPlayMode('queue')} disabled={isLoading || !canControl} />
-          Add to Queue
-        </label>
-        <label>
-          <input type="radio" value="next" checked={playMode === 'next'} onChange={() => setPlayMode('next')} disabled={!canControl} />
-          Play Next
-        </label>
-        <label>
-          <input type="radio" value="now" checked={playMode === 'now'} onChange={() => setPlayMode('now')} disabled={!canControl} />
-          Play Now
-        </label>
-      </div>
+      {activeTab === 'youtube' && (
+        <>
+          <form onSubmit={handleAddSong} className="add-song-form">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Enter YouTube URL or search..."
+              disabled={isLoading || !canControl}
+            />
+            <button type="submit" disabled={isLoading || !canControl}>Add Song</button>
+          </form>
+          <div className="play-mode-selector">
+            <label>
+              <input type="radio" value="queue" checked={playMode === 'queue'} onChange={() => setPlayMode('queue')} disabled={isLoading || !canControl} />
+              Add to Queue
+            </label>
+            <label>
+              <input type="radio" value="next" checked={playMode === 'next'} onChange={() => setPlayMode('next')} disabled={!canControl} />
+              Play Next
+            </label>
+            <label>
+              <input type="radio" value="now" checked={playMode === 'now'} onChange={() => setPlayMode('now')} disabled={!canControl} />
+              Play Now
+            </label>
+          </div>
+        </>
+      )}
     </div>
   );
 }

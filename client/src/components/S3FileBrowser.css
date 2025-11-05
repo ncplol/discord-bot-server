@@ -1,0 +1,251 @@
+.s3-browser-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.s3-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  align-items: center;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.control-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.search-input {
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  min-width: 200px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.sort-select,
+.filter-select {
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  min-width: 150px;
+}
+
+.sort-select:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.sort-order-btn {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.sort-order-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.play-mode-group {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.play-mode-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.play-mode-group input[type="radio"] {
+  cursor: pointer;
+}
+
+.play-mode-group input[type="radio"]:disabled + span {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.s3-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-list-header {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.s3-file-item {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.s3-file-item:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.file-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-artist,
+.file-album {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.file-duration {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+.file-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-play {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 150, 0, 0.8);
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.btn-play:hover:not(:disabled) {
+  background: rgba(0, 150, 0, 1);
+}
+
+.btn-play:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-play-small {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.2s;
+}
+
+.btn-play-small:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.btn-play-small:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.loading-message,
+.error-message,
+.no-files-message {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.error-message {
+  color: rgba(255, 100, 100, 0.9);
+}
+
+.btn-retry {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  cursor: pointer;
+}
+
+.btn-retry:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 768px) {
+  .file-list-header,
+  .s3-file-item {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .file-list-header {
+    display: none;
+  }
+
+  .s3-file-item {
+    padding: 1rem;
+  }
+
+  .file-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .file-artist,
+  .file-album,
+  .file-duration {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .file-actions {
+    margin-top: 0.5rem;
+  }
+}
+

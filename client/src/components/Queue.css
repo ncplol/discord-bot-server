@@ -97,6 +97,13 @@
   color: #aaa;
 }
 
+.track-album {
+  margin: 0;
+  font-size: 0.85em;
+  color: #999;
+  font-style: italic;
+}
+
 .track-duration {
   margin: 0;
   font-size: 0.8em;

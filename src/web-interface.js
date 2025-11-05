@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const MusicManager = require('./utils/musicManager');
+const S3Service = require('./utils/s3Service');
 const session = require('express-session');
 const passport = require('passport');
 const { Strategy: DiscordStrategy } = require('passport-discord-auth');
@@ -13,6 +14,20 @@ class WebInterface {
     this.client = client;
     this.app = express();
     this.musicManager = client.musicManager;
+    
+    // Initialize S3 service if credentials are provided
+    try {
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.S3_BUCKET_NAME) {
+        this.s3Service = new S3Service();
+        console.log('✅ S3 service initialized');
+      } else {
+        console.log('⚠️  S3 credentials not configured, S3 features disabled');
+        this.s3Service = null;
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize S3 service:', error);
+      this.s3Service = null;
+    }
     
     this.setupAuth();
     this.setupMiddleware();
@@ -186,6 +201,43 @@ class WebInterface {
           return res.json({ success: true, message: `Added ${tracks.length} tracks to the queue.` });
         }
 
+        // Check if it's an S3 presigned URL
+        if (this.isS3Url(query)) {
+          // For S3 URLs, we need to create a track object directly
+          // Since we don't have the key, we'll try to extract metadata from the URL if possible
+          // For now, create a basic track object
+          const track = {
+            title: 'S3 Audio File',
+            url: query,
+            duration: 0,
+            author: 'Unknown',
+            album: null,
+            source: 's3',
+            thumbnail: null,
+          };
+          
+          let message = '';
+          if (mode === 'next') {
+            this.musicManager.addToQueueFront(guildId, track);
+            message = `Added to front of queue: ${track.title}`;
+          } else if (mode === 'now') {
+            this.musicManager.addToQueueFront(guildId, track);
+            if (wasPlaying) {
+              this.musicManager.skipTrack(guildId);
+            }
+            message = `Now playing: ${track.title}`;
+          } else { // mode === 'queue'
+            this.musicManager.addToQueue(guildId, track);
+            message = `Added to queue: ${track.title}`;
+          }
+
+          // If nothing was playing, start the playback loop
+          if (!wasPlaying) {
+            await this.musicManager.playNext(guildId);
+          }
+          
+          return res.json({ success: true, message, track });
+        }
 
         const track = await this.musicManager.getTrackInfo(query);
         if (!track) {
@@ -552,6 +604,97 @@ class WebInterface {
       }
     });
 
+    // S3 endpoints
+    // Get S3 files with search, sort, and filter
+    this.app.get('/api/s3/files', this.ensureAuthenticated, async (req, res) => {
+      try {
+        if (!this.s3Service) {
+          return res.status(503).json({ error: 'S3 service is not configured' });
+        }
+
+        const { search, sort, order, filterArtist, filterAlbum } = req.query;
+        
+        const options = {
+          search: search || '',
+          sort: sort || 'title',
+          order: order || 'asc',
+          filterArtist: filterArtist || '',
+          filterAlbum: filterAlbum || '',
+        };
+
+        const files = await this.s3Service.getFiles(options);
+        res.json({ files });
+      } catch (error) {
+        console.error('Web API S3 files error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Play S3 file by key
+    this.app.post('/api/music/:guildId/play/s3', this.ensureAuthenticated, this.ensureUserHasRole.bind(this), async (req, res) => {
+      try {
+        if (!this.s3Service) {
+          return res.status(503).json({ error: 'S3 service is not configured' });
+        }
+
+        const { guildId } = req.params;
+        const { key, mode = 'queue' } = req.body;
+        
+        if (!key) {
+          return res.status(400).json({ error: 'S3 file key is required' });
+        }
+
+        const guild = this.client.guilds.cache.get(guildId);
+        if (!guild) {
+          return res.status(404).json({ error: 'Guild not found' });
+        }
+
+        // Find a voice channel to join if not connected
+        if (!this.musicManager.connections.has(guildId)) {
+          const voiceChannel = guild.channels.cache.find(c => c.type === 2);
+          if (!voiceChannel) {
+            return res.status(400).json({ error: 'No voice channels found to join.' });
+          }
+          const mockInteraction = { guildId, guild, member: { voice: { channel: voiceChannel } } };
+          await this.musicManager.joinVoiceChannel(mockInteraction);
+        }
+
+        const wasPlaying = this.musicManager.getNowPlaying(guildId);
+
+        // Get track info from S3
+        const track = await this.s3Service.getTrack(key);
+        if (!track) {
+          return res.status(404).json({ error: 'S3 file not found' });
+        }
+
+        let message = '';
+        if (mode === 'next') {
+          this.musicManager.addToQueueFront(guildId, track);
+          message = `Added to front of queue: ${track.title}`;
+        } else if (mode === 'now') {
+          this.musicManager.addToQueueFront(guildId, track);
+          if (wasPlaying) {
+            this.musicManager.skipTrack(guildId);
+          }
+          message = `Now playing: ${track.title}`;
+        } else { // mode === 'queue'
+          this.musicManager.addToQueue(guildId, track);
+          message = `Added to queue: ${track.title}`;
+        }
+
+        // If nothing was playing, start the playback loop
+        if (!wasPlaying) {
+          await this.musicManager.playNext(guildId);
+        }
+        
+        res.json({ success: true, message, track });
+        
+      } catch (error) {
+        console.error('Web API S3 play error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     //
 
     // SPA fallback: serve index.html for non-API GET requests (Express 5-safe)
@@ -577,6 +720,10 @@ class WebInterface {
   isYouTubePlaylistUrl(query) {
     const playlistPattern = /^https?:\/\/(www\.)?youtube\.com\/playlist\?list=/;
     return playlistPattern.test(query);
+  }
+
+  isS3Url(query) {
+    return query && (query.includes('amazonaws.com') || query.includes('s3.'));
   }
 
   start(port = 3001) {

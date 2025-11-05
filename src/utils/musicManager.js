@@ -144,6 +144,11 @@ class MusicManager {
     return queue.length;
   }
 
+  // Check if URL is an S3 presigned URL
+  isS3Url(url) {
+    return url && (url.includes('amazonaws.com') || url.includes('s3.'));
+  }
+
   // Play a track immediately
   async playTrack(guildId, track) {
     const player = this.players.get(guildId);
@@ -158,23 +163,37 @@ class MusicManager {
 
       console.log('🔗 Attempting to stream directly from URL:', track.url);
 
-      // Spawn yt-dlp to get a raw audio stream, piping stdout
-      const ytdlp = spawn('yt-dlp', [
-        track.url,
-        '-o', '-', // Pipe output to stdout
-        '--downloader', 'ffmpeg',
-        '--format', 'bv*+ba/b',
-        '--no-playlist',
-        '--extract-audio',
-      ]);
+      let resource;
+      let processToTrack = null;
 
-      // Store the process so we can kill it later
-      this.streamProcesses.set(guildId, ytdlp);
+      // Check if this is an S3 URL (presigned URL or marked as S3 source)
+      if (track.source === 's3' || this.isS3Url(track.url)) {
+        // For S3 presigned URLs, stream directly using createAudioResource with URL
+        // Discord.js voice can handle HTTP URLs directly
+        console.log('📦 Detected S3 URL, streaming directly');
+        resource = createAudioResource(track.url, {
+          inlineVolume: true,
+        });
+      } else {
+        // For YouTube URLs, use yt-dlp
+        const ytdlp = spawn('yt-dlp', [
+          track.url,
+          '-o', '-', // Pipe output to stdout
+          '--downloader', 'ffmpeg',
+          '--format', 'bv*+ba/b',
+          '--no-playlist',
+          '--extract-audio',
+        ]);
 
-      // Create audio resource from the ytdlp stdout stream
-      const resource = createAudioResource(ytdlp.stdout, {
-        inlineVolume: true,
-      });
+        // Store the process so we can kill it later
+        this.streamProcesses.set(guildId, ytdlp);
+        processToTrack = ytdlp;
+
+        // Create audio resource from the ytdlp stdout stream
+        resource = createAudioResource(ytdlp.stdout, {
+          inlineVolume: true,
+        });
+      }
       
       const volume = this.getVolume(guildId);
       resource.volume.setVolume(volume / 100);
@@ -222,15 +241,17 @@ class MusicManager {
         onStreamEnd(); // Still try to play the next song on error
       });
       
-      // Log any errors from the ytdlp process itself
-      ytdlp.stderr.on('data', (data) => {
-        console.error(`yt-dlp stderr: ${data}`);
-      });
+      // Log any errors from the ytdlp process itself (only for YouTube)
+      if (processToTrack) {
+        processToTrack.stderr.on('data', (data) => {
+          console.error(`yt-dlp stderr: ${data}`);
+        });
 
-      // Clean up process reference when the process exits
-      ytdlp.on('close', () => {
-        this.streamProcesses.delete(guildId);
-      });
+        // Clean up process reference when the process exits
+        processToTrack.on('close', () => {
+          this.streamProcesses.delete(guildId);
+        });
+      }
 
       player.play(resource);
       console.log(`🎵 Playing: ${track.title}`);

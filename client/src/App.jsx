@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Queue from './components/Queue';
+import S3FileBrowser from './components/S3FileBrowser';
 import ConnectionManager from './components/ConnectionManager';
 import Modal from './components/Modal';
 import './App.css';
@@ -15,6 +16,7 @@ function App() {
   const [inviteUrl, setInviteUrl] = useState(null);
   const [controllerRoleName, setControllerRoleName] = useState(null);
   const [isInviteModalOpen, setInviteModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('youtube'); // 'youtube' or 's3'
 
   const apiCall = async (apiFunction) => {
     setIsLoading(true);
@@ -178,14 +180,37 @@ function App() {
 
               {status.connected ? (
                 <div className="panels">
+                  <div className="tab-navigation">
+                    <button
+                      className={`tab-button ${activeTab === 'youtube' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('youtube')}
+                    >
+                      YouTube
+                    </button>
+                    <button
+                      className={`tab-button ${activeTab === 's3' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('s3')}
+                    >
+                      S3 Files
+                    </button>
+                  </div>
                   <div className="panel queue-panel">
-                    <Queue 
-                      guildId={selectedGuild.id} 
-                      status={{...status, isLoading}} 
-                      volume={status.volume}
-                      onApiCall={apiCall}
-                      canControl={status.canControl}
-                    />
+                    {activeTab === 'youtube' ? (
+                      <Queue 
+                        guildId={selectedGuild.id} 
+                        status={{...status, isLoading}} 
+                        volume={status.volume}
+                        onApiCall={apiCall}
+                        canControl={status.canControl}
+                        activeTab={activeTab}
+                      />
+                    ) : (
+                      <S3FileBrowser
+                        guildId={selectedGuild.id}
+                        onApiCall={apiCall}
+                        canControl={status.canControl}
+                      />
+                    )}
                   </div>
                 </div>
               ) : (

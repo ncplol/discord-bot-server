@@ -3,7 +3,7 @@ import PlayerControls from './PlayerControls';
 import ProgressBar from './ProgressBar';
 import './Queue.css';
 
-function Queue({ guildId, status, volume, onApiCall, canControl }) {
+function Queue({ guildId, status, volume, onApiCall, canControl, activeTab }) {
   const [progress, setProgress] = useState(0);
   const progressIntervalRef = useRef(null);
 
@@ -55,15 +55,21 @@ function Queue({ guildId, status, volume, onApiCall, canControl }) {
         isLoading={status.isLoading}
         onApiCall={onApiCall}
         canControl={canControl}
+        activeTab={activeTab}
       />
 
       <h4>Now Playing</h4>
       {status.nowPlaying ? (
         <div className="track now-playing">
-          <img src={status.nowPlaying.thumbnail} alt={status.nowPlaying.title} className="track-thumbnail" />
+          {status.nowPlaying.thumbnail && (
+            <img src={status.nowPlaying.thumbnail} alt={status.nowPlaying.title} className="track-thumbnail" />
+          )}
           <div className="track-details">
             <p className="track-title">{status.nowPlaying.title}</p>
             <p className="track-author">{status.nowPlaying.author}</p>
+            {status.nowPlaying.album && (
+              <p className="track-album">{status.nowPlaying.album}</p>
+            )}
             <ProgressBar current={progress} total={status.nowPlaying.duration} />
           </div>
         </div>
