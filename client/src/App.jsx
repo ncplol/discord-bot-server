@@ -272,7 +272,7 @@ function App() {
                         className={`tab-button ${activeTab === 's3' ? 'active' : ''}`}
                         onClick={() => setActiveTab('s3')}
                       >
-                        S3 Files
+                        Library
                       </button>
                     </div>
 
