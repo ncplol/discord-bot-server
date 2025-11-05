@@ -1,7 +1,57 @@
 import { useState, useEffect } from 'react';
+import './PlaybackStatus.css';
 import './S3FileBrowser.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true';
+
+// Mock S3 files for development
+const MOCK_S3_FILES = [
+  {
+    key: 'music/song1.mp3',
+    filename: 'song1.mp3',
+    url: 'https://example.com/song1.mp3',
+    title: 'Amazing Song',
+    artist: 'Great Artist',
+    album: 'Best Album',
+    duration: 245,
+    size: 5123456,
+    lastModified: new Date().toISOString(),
+  },
+  {
+    key: 'music/song2.mp3',
+    filename: 'song2.mp3',
+    url: 'https://example.com/song2.mp3',
+    title: 'Epic Track',
+    artist: 'Great Artist',
+    album: 'Best Album',
+    duration: 180,
+    size: 4123456,
+    lastModified: new Date().toISOString(),
+  },
+  {
+    key: 'music/song3.mp3',
+    filename: 'song3.mp3',
+    url: 'https://example.com/song3.mp3',
+    title: 'Cool Beat',
+    artist: 'Another Artist',
+    album: 'Cool Album',
+    duration: 320,
+    size: 6123456,
+    lastModified: new Date().toISOString(),
+  },
+  {
+    key: 'music/song4.mp3',
+    filename: 'song4.mp3',
+    url: 'https://example.com/song4.mp3',
+    title: 'Jazz Number',
+    artist: 'Jazz Artist',
+    album: null,
+    duration: 195,
+    size: 3923456,
+    lastModified: new Date().toISOString(),
+  },
+];
 
 function formatDuration(seconds) {
   if (!seconds) return 'Unknown';
@@ -10,7 +60,7 @@ function formatDuration(seconds) {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-function S3FileBrowser({ guildId, onApiCall, canControl }) {
+function S3FileBrowser({ guildId, onApiCall, canControl, playMode, onPlayModeChange }) {
   const [files, setFiles] = useState([]);
   const [filteredFiles, setFilteredFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,13 +76,25 @@ function S3FileBrowser({ guildId, onApiCall, canControl }) {
   // Available artists and albums for filters
   const [availableArtists, setAvailableArtists] = useState([]);
   const [availableAlbums, setAvailableAlbums] = useState([]);
-  
-  // Play mode state
-  const [playMode, setPlayMode] = useState('queue');
 
   const fetchFiles = async () => {
     setLoading(true);
     setError(null);
+    
+    // In dev mode, use mock data
+    if (DEV_MODE) {
+      setTimeout(() => {
+        setFiles(MOCK_S3_FILES);
+        setFilteredFiles(MOCK_S3_FILES);
+        const artists = [...new Set(MOCK_S3_FILES.map(f => f.artist).filter(Boolean))].sort();
+        const albums = [...new Set(MOCK_S3_FILES.map(f => f.album).filter(Boolean))].sort();
+        setAvailableArtists(artists);
+        setAvailableAlbums(albums);
+        setLoading(false);
+      }, 500);
+      return;
+    }
+    
     try {
       const params = new URLSearchParams({
         search: searchQuery,
@@ -163,40 +225,6 @@ function S3FileBrowser({ guildId, onApiCall, canControl }) {
             ))}
           </select>
         </div>
-
-        {/* Play Mode */}
-        <div className="control-group play-mode-group">
-          <label>
-            <input
-              type="radio"
-              value="queue"
-              checked={playMode === 'queue'}
-              onChange={() => setPlayMode('queue')}
-              disabled={!canControl}
-            />
-            Add to Queue
-          </label>
-          <label>
-            <input
-              type="radio"
-              value="next"
-              checked={playMode === 'next'}
-              onChange={() => setPlayMode('next')}
-              disabled={!canControl}
-            />
-            Play Next
-          </label>
-          <label>
-            <input
-              type="radio"
-              value="now"
-              checked={playMode === 'now'}
-              onChange={() => setPlayMode('now')}
-              disabled={!canControl}
-            />
-            Play Now
-          </label>
-        </div>
       </div>
 
       {/* File List */}
@@ -208,65 +236,57 @@ function S3FileBrowser({ guildId, onApiCall, canControl }) {
               : 'No audio files found in S3 bucket.'}
           </div>
         ) : (
-          <>
-            <div className="file-list-header">
-              <span>Title</span>
-              <span>Artist</span>
-              <span>Album</span>
-              <span>Duration</span>
-              <span>Actions</span>
-            </div>
-            {filteredFiles.map((file, index) => (
-              <div key={file.key || index} className="s3-file-item">
-                <span className="file-title">{file.title || file.filename}</span>
-                <span className="file-artist">{file.artist || 'Unknown'}</span>
-                <span className="file-album">{file.album || '-'}</span>
-                <span className="file-duration">{formatDuration(file.duration)}</span>
-                <div className="file-actions">
-                  {canControl && (
-                    <>
-                      <button
-                        onClick={() => handlePlay(file, playMode)}
-                        className="btn-play"
-                        title={`${playMode === 'queue' ? 'Add to Queue' : playMode === 'next' ? 'Play Next' : 'Play Now'}`}
-                      >
-                        {playMode === 'queue' ? '➕' : playMode === 'next' ? '⏭️' : '▶️'}
-                      </button>
-                      <button
-                        onClick={() => handlePlay(file, 'queue')}
-                        className="btn-play-small"
-                        title="Add to Queue"
-                        disabled={playMode === 'queue'}
-                      >
-                        +Q
-                      </button>
-                      <button
-                        onClick={() => handlePlay(file, 'next')}
-                        className="btn-play-small"
-                        title="Play Next"
-                        disabled={playMode === 'next'}
-                      >
-                        +N
-                      </button>
-                      <button
-                        onClick={() => handlePlay(file, 'now')}
-                        className="btn-play-small"
-                        title="Play Now"
-                        disabled={playMode === 'now'}
-                      >
-                        ▶
-                      </button>
-                    </>
-                  )}
-                </div>
+          filteredFiles.map((file, index) => (
+            <div key={file.key || index} className={`track ${canControl ? 'clickable' : ''}`} onClick={canControl ? () => handlePlay(file, playMode) : undefined}>
+              <span className="track-position">{index + 1}.</span>
+              <div className="track-details">
+                <p className="track-title">{file.title || file.filename}</p>
+                <p className="track-metadata">
+                  {file.artist || 'Unknown Artist'}
+                  {file.album && ` • ${file.album}`}
+                  {file.duration && ` • ${formatDuration(file.duration)}`}
+                </p>
               </div>
-            ))}
-          </>
+            </div>
+          ))
         )}
+      </div>
+
+      {/* Play Mode Selector */}
+      <div className="play-mode-selector">
+        <label>
+          <input 
+            type="radio" 
+            value="queue" 
+            checked={playMode === 'queue'} 
+            onChange={() => onPlayModeChange && onPlayModeChange('queue')}
+            disabled={!canControl} 
+          />
+          Add to Queue
+        </label>
+        <label>
+          <input 
+            type="radio" 
+            value="next" 
+            checked={playMode === 'next'} 
+            onChange={() => onPlayModeChange && onPlayModeChange('next')}
+            disabled={!canControl} 
+          />
+          Play Next
+        </label>
+        <label>
+          <input 
+            type="radio" 
+            value="now" 
+            checked={playMode === 'now'} 
+            onChange={() => onPlayModeChange && onPlayModeChange('now')}
+            disabled={!canControl} 
+          />
+          Play Now
+        </label>
       </div>
     </div>
   );
 }
 
 export default S3FileBrowser;
-

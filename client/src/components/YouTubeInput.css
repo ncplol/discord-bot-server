@@ -1,0 +1,75 @@
+.youtube-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.add-song-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-song-form input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--primary-bg);
+  color: var(--text-color);
+  font-size: 1rem;
+}
+
+.add-song-form input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.add-song-form button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--accent-color);
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.add-song-form button:hover:not(:disabled) {
+  background-color: #5b6eae;
+}
+
+.add-song-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.play-mode-selector {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.play-mode-selector label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.play-mode-selector input[type="radio"] {
+  cursor: pointer;
+}
+
+.play-mode-selector input[type="radio"]:disabled {
+  cursor: not-allowed;
+}
+
+.play-mode-selector input[type="radio"]:disabled + span {
+  opacity: 0.5;
+}
+
