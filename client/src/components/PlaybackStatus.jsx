@@ -30,6 +30,12 @@ function PlaybackStatus({ guildId, status, onApiCall, canControl }) {
     }));
   };
 
+  const removeTrack = (trackIndex, e) => {
+    e.preventDefault(); // Prevent default button behavior
+    e.stopPropagation(); // Prevent triggering the play action on parent div
+    onApiCall(() => fetch(`/api/music/${guildId}/queue/${trackIndex}`, { method: 'DELETE' }));
+  };
+
   useEffect(() => {
     // Logic to handle song changes and sync progress
     if (status.playerStatus === 'playing' && status.nowPlaying) {
@@ -82,8 +88,20 @@ function PlaybackStatus({ guildId, status, onApiCall, canControl }) {
           (status.queue || []).map((track, index) => (
             <div key={`${track.url}-${index}`} className={`track ${canControl ? 'clickable' : ''}`} onClick={canControl ? () => playFromQueue(index) : undefined}>
               <span className="track-position">{index + 1}.</span>
-              <p className="track-title">{track.title}</p>
-              {track.artist && <p className="track-metadata">{track.artist}{track.album ? ` • ${track.album}` : ''}</p>}
+              <div className="track-content">
+                <p className="track-title">{track.title}</p>
+                {track.artist && <p className="track-metadata">{track.artist}{track.album ? ` • ${track.album}` : ''}</p>}
+              </div>
+              {canControl && (
+                <button
+                  className="btn-remove-track"
+                  onClick={(e) => removeTrack(index, e)}
+                  disabled={status.isLoading}
+                  title="Remove from queue"
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))
         ) : (

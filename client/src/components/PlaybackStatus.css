@@ -51,6 +51,12 @@
   border-radius: 5px;
   margin-bottom: 8px;
   background-color: var(--primary-bg);
+  position: relative;
+}
+
+.track-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .track.clickable {
@@ -60,6 +66,39 @@
 
 .track.clickable:hover {
   background-color: var(--accent-color);
+}
+
+.btn-remove-track {
+  display: none;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  align-items: center;
+  justify-content: center;
+}
+
+.track:hover .btn-remove-track {
+  display: flex;
+}
+
+.btn-remove-track:hover {
+  background-color: #c82333;
+  transform: scale(1.1);
+}
+
+.btn-remove-track:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .track.now-playing {
