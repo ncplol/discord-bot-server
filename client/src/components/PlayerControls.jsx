@@ -97,7 +97,9 @@ function PlayerControls({ guildId, playerStatus, loopMode, volume, isLoading, on
             />
             <span className="volume-value">{currentVolume}%</span>
           </div>
-          
+        </div>
+        
+        <div className="loop-controls-wrapper">
           <div className="loop-controls">
             <button 
               className={`loop-btn ${loopMode === 'none' ? 'active' : ''}`} 

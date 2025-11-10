@@ -1,8 +1,10 @@
-.playback-status-container {
+.playback-status-content {
   text-align: left;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.playback-status-container h4 {
+.playback-status-content h4 {
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 8px;
   margin-bottom: 15px;
@@ -41,7 +43,10 @@
 .queue-list {
   max-height: 250px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .track {
@@ -52,6 +57,9 @@
   margin-bottom: 8px;
   background-color: var(--primary-bg);
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .track-content {
@@ -129,6 +137,9 @@
 .track-title {
   margin: 0;
   font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .track-author {

@@ -51,7 +51,7 @@ function PlaybackStatus({ guildId, status, onApiCall, canControl }) {
   }, [status.nowPlaying, status.playerStatus, status.playbackDuration]);
 
   return (
-    <div className="playback-status-container">
+    <div className="playback-status-content">
       <h4>Now Playing</h4>
       {status.nowPlaying ? (
         <div className="track now-playing">
